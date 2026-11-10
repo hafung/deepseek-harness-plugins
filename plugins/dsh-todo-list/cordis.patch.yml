@@ -1,0 +1,3 @@
+- insert:
+    - id: local-todo-list
+      name: '@local/dsh-todo-list'

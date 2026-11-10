@@ -1,0 +1,26 @@
+{
+  "name": "deepseek-harness-plugins",
+  "private": true,
+  "license": "MIT",
+  "author": "hafung",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hafung/deepseek-harness-plugins.git"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "test": "pnpm run test:todo && pnpm run test:experts && pnpm run test:aurora",
+    "test:todo": "node tests/dsh-todo-list.smoke.cjs",
+    "test:experts": "node tests/dsh-experts.smoke.cjs",
+    "test:aurora": "node tests/dsh-aurora.smoke.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "scheduler": "0.27.0"
+  }
+}

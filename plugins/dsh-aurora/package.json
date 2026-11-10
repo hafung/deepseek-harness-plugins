@@ -1,0 +1,50 @@
+{
+  "name": "@local/dsh-aurora",
+  "version": "0.5.0",
+  "private": true,
+  "title": "极光主题",
+  "description": "替换侧栏品牌文字与标志，并用可选光效或壁纸重绘整个应用背景。",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "package.json",
+    "README.md",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "hafung",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hafung/deepseek-harness-plugins.git",
+    "directory": "plugins/dsh-aurora"
+  },
+  "homepage": "https://github.com/hafung/deepseek-harness-plugins/tree/main/plugins/dsh-aurora#readme",
+  "bugs": {
+    "url": "https://github.com/hafung/deepseek-harness-plugins/issues"
+  }
+}

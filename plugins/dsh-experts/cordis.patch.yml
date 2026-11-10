@@ -1,0 +1,3 @@
+- insert:
+    - id: local-experts
+      name: '@local/dsh-experts'

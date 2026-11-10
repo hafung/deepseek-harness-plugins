@@ -1,0 +1,8 @@
+# The shipped official brand owns the same two single slots. A replacement brand
+# must withdraw it so the sidebar has exactly one occupant; uninstalling this
+# bundle restores it.
+- id: ui-brand-official
+  disabled: true
+- insert:
+    - id: local-aurora
+      name: '@local/dsh-aurora'

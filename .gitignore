@@ -1,0 +1,13 @@
+node_modules/
+dist/
+playwright-report/
+test-results/
+tmp/
+.scratch/
+.acl-recovery/
+.acl-reports/
+*.tgz
+*.log
+.env
+.env.*
+!.env.example
