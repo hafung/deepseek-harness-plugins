@@ -27,7 +27,9 @@
 
 ## 改品牌、换背景、放设置入口
 
-- 品牌位是 `sidebar.brand.mark` 与 `sidebar.brand.name` 两个 single slot，注册时只传 `name`，不要再带 `id`/`order`——single slot 的注册项就是空对象，官方品牌包也是这么注册的。官方 `dsh-client-ui-brand-official` 会占住这两个位置，要替换它必须在 bundle 补丁里把 `ui-brand-official` 置为 `disabled: true`，否则两个占用者同时在场时谁生效取决于载入顺序。
+- 品牌位是 `sidebar.brand.mark` 与 `sidebar.brand.name` 两个 single slot。**同优先级重复注册会直接抛错**（`single slot ... already has a registration at priority 0`），要覆盖随附的 `ui-brand-official` 必须显式降低优先级，例如 `ctx.slots.register({ name, priority: -1 }, …)`——数字越小越靠前，撤销自己的注册后官方品牌会自动露出来。这也是「关闭插件即恢复官方外观」能成立的原因，不要再去补丁里 `disabled` 官方品牌包。
+- 可选服务用 `ctx.get('theme')` 读取，**不要写 `ctx.theme`**：没有在 `inject` 里声明就直接读属性会抛 `cannot get property "theme" without inject`，把后面的注册整段跳过。需要硬依赖时才在插件 `inject` 里声明；声明后插件停用再启用时，若服务解析异常会导致插件再也挂不回来。
+- 品牌和皮肤这类会影响全局的初始化，先注册设置页、再用 try/catch 包住皮肤部分，并把错误显示在设置页里，否则一处失败就只剩「入口消失」这种无从排查的现象。
 - 全应用背景不要写死颜色：把每种效果写成 `body[data-dsh-aurora-effect="..."]` 上的自定义属性（`--aurora-*`），组件只切换 `data-*`；壁纸用 `body.style.setProperty('--dsh-aurora-wall', 'url(...)')` 注入，避免每次输入都重写一整段 CSS。背景层用 `body::before` 的 `position: fixed; inset: -6%; z-index: -1`，同时把 `--dsw-alias-bg-base` 等 token 调成半透明，光效才能从面板下面透出来。压暗层只叠在壁纸上，否则会把自带光效冲成白色。
 - 插件设置页用 `settings.section`（`id` 与 `settings.section.icon` 相同才会显示导航图标），不要放常驻按钮：窗口最顶部的 **应用 / 编辑** 菜单由桌面端 Electron 主进程的 `Menu.setApplicationMenu` 生成，插件没有注册接口，只能选设置页或某个已有菜单的扩展位。
 - 确实需要浮层时注册到 `shell.overlay`，用 `getBoundingClientRect()` 跟着触发按钮定位；`Escape` 和遮罩关闭，关闭时把焦点还给按钮。

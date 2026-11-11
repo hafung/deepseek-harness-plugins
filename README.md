@@ -15,7 +15,7 @@ Community plugins for DeepSeek Harness: todos, reusable expert prompts, a daily 
 | --- | --- | --- | --- |
 | [待办清单](plugins/dsh-todo-list/README.md) | `1.3.0` | 管理本地待办，后台派发给主 Agent，跟踪会话状态，导入导出 JSON | `0.2.0-rc.2` |
 | [专家](plugins/dsh-experts/README.md) | `1.0.0` | 管理专家提示词，分类、收藏与搜索，一键载入对话草稿，导入导出 JSON | `0.2.2-rc.1` |
-| [热点](plugins/dsh-hotspot/README.md) | `1.2.0` | 274 个精选 RSS 信源，72 小时时效窗口，AI 精排 Top 30，自媒体选题评分，收藏与看过归档，网感转写 | `0.2.2-rc.1` |
+| [热点](plugins/dsh-hotspot/README.md) | `1.2.0` | 274 个精选 RSS 信源（含 Hacker News）、72 小时时效窗口、AI 精排 Top 30、一手来源优先、自媒体选题评分、收藏与看过归档、网感转写 | `0.2.2-rc.1` |
 | [极光主题](plugins/dsh-aurora/README.md) | `0.5.1` | 自定义侧栏品牌与标志，八种背景光效、本地壁纸、模糊与压暗 | `0.2.2-rc.1` |
 
 上表列出各插件开发时对照的版本，其他 Harness 版本请自行验证。预览版的插件接口可能变化；遇到问题请附上 Harness 版本和复现步骤，提交 [Issue](https://github.com/hafung/deepseek-harness-plugins/issues)。

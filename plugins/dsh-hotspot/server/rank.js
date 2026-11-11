@@ -61,6 +61,10 @@ const SOURCE_AUTHORITY = {
   manual: 4.8,
 }
 
+const HACKER_NEWS_RE = /^(?:Hacker News(?: -.*)?|Show HN|Ask HN)$/i
+const PRIMARY_SOURCE_RE = /(?:OpenAI|Anthropic|Google DeepMind|Google AI|Google Research|Hugging Face|DeepSeek|Microsoft|Apple Machine Learning|NVIDIA|Meta AI|AWS|Amazon Science|Databricks|Stripe|Cloudflare|GitHub|JetBrains|Supabase|Vercel|Figma|Notion|Canva|Slack|Spotify|Airbnb|Etsy|Elastic|Rust Blog|Mozilla|智谱|月之暗面|Kimi|腾讯混元|通义实验室|阶跃|MiniMax|百度|阿里|字节|蚂蚁|商汤|旷视|科大讯飞)/i
+const CHINESE_SECONDARY_RE = /(?:IT之家|36氪|虎嗅|钛媒体|爱范儿|机器之心|量子位|新智元|少数派|蓝点网|InfoQ|站长之家|FreeBuf|安全客|雷峰网|品玩|极客公园|差评|智东西|硅星人|晚点|财新|界面|澎湃|第一财经|新浪科技|网易科技|腾讯科技|搜狐科技|凤凰科技|观察者网|DoNews|TechWeb|快科技|中关村在线|CSDN|开源中国|电脑报|手机中国|太平洋电脑网|SuperTechFans|HackerNews每日摘要)/i
+
 const SIGNAL_TERMS = [
   [/(?:\blaunch(?:es|ed|ing)?\b|\breleas(?:e|es|ed|ing)\b|\bunveil\w*|\bannounc\w*|\bintroduc\w*|\bdebut\w*|发布|推出|上线|亮相|宣布|开源)/i, 7.5],
   [/(?:\bbreakthrough\b|\bfirst\b|\brecord\b|\bexclusive\b|\bconfirmed\b|\bwins?\b|\bbeats?\b|\bsurpass\w*|突破|首次|刷新|纪录|独家|确认|超越|拿下)/i, 7],
@@ -73,7 +77,7 @@ const SIGNAL_TERMS = [
 
 const LOW_SIGNAL_RE = /(?:\brelease notes?\b|\bchangelog\b|\bcommits?\b|\bweekly\b|\bpodcast\b|\bnewsletter\b|\bhow to\b|\btutorial\b|\bbest\b|\bdeals?\b|\bcoupon\b|\bgiveaway\b|\bsponsored\b|\bpromo\b|发布说明|更新日志|播客|周刊|教程|促销|优惠|广告|抽奖)/i
 const HARD_LOW_SIGNAL_RE = /(?:release notes from|recent commits to|commit history)/i
-const PROMO_TITLE_RE = /(?:交流群|扫码|加入我们|添加.{0,6}(?:助手|微信|客服)|公众号|领取|福利|抽奖|报名|训练营|公开课|限时|优惠|促销|折扣|返现|开户|下载.{0,4}APP|欢迎关注|AICon|峰会|沙龙|论坛|直播|join (?:our|the) (?:group|community|newsletter)|sign up now|subscribe now|webinar|free trial)/i
+const PROMO_TITLE_RE = /(?:交流群|扫码|加入我们|添加.{0,6}(?:助手|微信|客服)|公众号|领取|福利|抽奖|报名|训练营|公开课|限时|优惠|促销|折扣|返现|开户|下载.{0,4}APP|欢迎关注|AICon|峰会|沙龙|论坛|直播|promo codes?|coupon|discount|deal of the day|% off|join (?:our|the) (?:group|community|newsletter)|sign up now|subscribe now|webinar|free trial)/i
 const DIGEST_RE = /(?:早报|晚报|日报|午报|8点1氪|派早报|今日热点导览|一周要闻|周末读|top stories|roundup|digest|morning brief|daily brief)/i
 const CREATOR_BOOST_RE = /(?:如何|为什么|背后|真相|揭秘|翻车|争议|失控|危机|裁员|涨薪|省钱|赚钱|副业|普通人|打工人|职场|教育|医疗|房价|消费|测评|实测|上手|体验|对比|教程|指南|清单|工具|提示词|手机|眼镜|耳机|机器人|人形|太空|芯片|算力|游戏|电影|AI\s*工具)/i
 const CREATOR_DROP_RE = /(?:论文|基准|白皮书|协议|标准|财报|招股书|监管|诉讼|判决|弹劾|制裁|通胀|债券|利率|地缘|外交|法案|融资|并购|IPO|估值)/i
@@ -114,6 +118,21 @@ export function categoryFor(article) {
   return 'tech'
 }
 
+function sourceClass(article) {
+  const title = String(article.sourceTitle ?? '')
+  if (HACKER_NEWS_RE.test(title)) return 'hacker-news'
+  if (PRIMARY_SOURCE_RE.test(title)) return 'primary'
+  if (CHINESE_SECONDARY_RE.test(title)) return 'secondary-cn'
+  if (String(article.language ?? '').toLowerCase().startsWith('zh')) return 'chinese-other'
+  return 'other'
+}
+
+function sourceCap(kind) {
+  if (kind === 'secondary-cn') return 2
+  if (kind === 'primary' || kind === 'hacker-news') return 3
+  return 2
+}
+
 function sourceAuthority(article) {
   const packs = Array.isArray(article.packs) ? article.packs : []
   let weight = 0
@@ -122,7 +141,12 @@ function sourceAuthority(article) {
   if (HARD_LOW_SIGNAL_RE.test(String(article.sourceTitle ?? ''))) weight -= 8
   if (/arxiv/i.test(String(article.sourceTitle ?? ''))) weight -= 5
   if (/hacker news - newest/i.test(String(article.sourceTitle ?? ''))) weight -= 3
-  return clamp(weight, -4, 15)
+  const kind = sourceClass(article)
+  if (kind === 'primary') weight += 6
+  else if (kind === 'hacker-news') weight += 5
+  else if (kind === 'secondary-cn') weight -= 4
+  else if (kind === 'chinese-other') weight -= 1
+  return clamp(weight, -4, 22)
 }
 
 function topicScore(article) {
@@ -203,6 +227,7 @@ export function scoreArticle(article, now = Date.now()) {
   return {
     ...article,
     category: categoryFor(article),
+    sourceKind: sourceClass(article),
     _score: Number(score.toFixed(2)),
   }
 }
@@ -213,62 +238,45 @@ function diversify(scored, limit) {
   const counts = {}
   const languages = { zh: 0, en: 0, other: 0 }
   const sources = {}
+  let secondaryCount = 0
   const languageOf = article => {
     const language = String(article.language ?? 'other').toLowerCase()
     return language.startsWith('zh') ? 'zh' : language.startsWith('en') ? 'en' : 'other'
   }
-  for (const article of scored) {
-    if (picked.length >= limit) break
-    if ((counts[article.category] ?? 0) >= (CATEGORY_CAPS[article.category] ?? 3)) continue
-    if ((sources[article.sourceId] ?? 0) >= 4) continue
+  const canTake = (article, enforceCategory) => {
+    if (enforceCategory && (counts[article.category] ?? 0) >= (CATEGORY_CAPS[article.category] ?? 3)) return false
+    const kind = article.sourceKind ?? sourceClass(article)
+    if ((sources[article.sourceId] ?? 0) >= sourceCap(kind)) return false
     const language = languageOf(article)
-    if (language === 'zh' && languages.zh >= 20) continue
-    if (language === 'en' && languages.en >= 18) continue
+    if (language === 'zh' && languages.zh >= 12) return false
+    if (kind === 'secondary-cn' && secondaryCount >= 8) return false
+    return true
+  }
+  const take = article => {
+    const kind = article.sourceKind ?? sourceClass(article)
     counts[article.category] = (counts[article.category] ?? 0) + 1
-    languages[language] += 1
+    languages[languageOf(article)] += 1
     sources[article.sourceId] = (sources[article.sourceId] ?? 0) + 1
+    if (kind === 'secondary-cn') secondaryCount += 1
     picked.push(article)
     used.add(article.id)
+  }
+  for (const article of scored) {
+    if (picked.length >= limit) break
+    if (!canTake(article, true)) continue
+    take(article)
   }
   for (const article of scored) {
     if (picked.length >= limit) break
     if (used.has(article.id)) continue
-    picked.push(article)
-    used.add(article.id)
-  }
-  return picked
-}
-
-function ensureFloors(picked, scored, limit) {
-  const floors = { science: 2, culture: 1 }
-  const counts = {}
-  for (const article of picked) counts[article.category] = (counts[article.category] ?? 0) + 1
-  for (const [category, floor] of Object.entries(floors)) {
-    while ((counts[category] ?? 0) < floor && picked.length >= limit) {
-      const candidate = scored.find(article => article.category === category
-        && !picked.some(existing => existing.id === article.id))
-      if (!candidate) break
-      let replaceIndex = -1
-      for (let index = picked.length - 1; index >= 0; index -= 1) {
-        const existing = picked[index]
-        if ((counts[existing.category] ?? 0) <= 1) continue
-        if (existing.category === 'science' || existing.category === 'culture') continue
-        if (candidate._score < (existing._score ?? 0) * 0.95) break
-        replaceIndex = index
-        break
-      }
-      if (replaceIndex < 0) break
-      const removed = picked[replaceIndex]
-      counts[removed.category] = (counts[removed.category] ?? 1) - 1
-      picked[replaceIndex] = candidate
-      counts[category] = (counts[category] ?? 0) + 1
-    }
+    if (!canTake(article, false)) continue
+    take(article)
   }
   return picked
 }
 
 function selectFinal(scored, limit) {
-  return ensureFloors(diversify(scored, limit), scored, limit)
+  return diversify(scored, limit)
 }
 
 export function heuristicRank(articles, { now = Date.now(), topN = 30 } = {}) {
@@ -295,6 +303,8 @@ export function buildLlmPrompt(candidates, { now = Date.now(), topN = 30, window
     '价值判断标准：',
     '- 优先：AI 与前沿科技的重大进展，重要产品/模型发布，产业与资本大事，安全事件，重要科学发现，影响广泛的全球新闻。',
     '- 优先：信息增量大、一手来源、时效性强、多个信源共同关注、对从业者有实际影响。',
+    '- 优先：公司/实验室官方博客、公告、论文、开发者文档，以及 Hacker News 发现的原站报道。',
+    '- 中文媒体、公众号的二手转述最多 8 条，同一家中文媒体最多 2 条；不要把同一事件的多篇中文转述重复选入。',
     '- 避免：促销、教程、纯观点碎碎念、版本发布日志、单一来源的重复内容、标题党。',
     '- 保持必要的题材多样性；AI/科技可以占多数，但不要 30 条全部来自同一主题。',
     '',
@@ -358,36 +368,58 @@ export function applyLlmSelection(candidates, selection, { fallback = [], topN =
   const picked = []
   const used = new Set()
   const counts = {}
-  const accept = (entry, enforceCaps) => {
+  const sourceCounts = {}
+  const languages = { zh: 0, en: 0, other: 0 }
+  let secondaryCount = 0
+  const languageOf = article => {
+    const language = String(article.language ?? 'other').toLowerCase()
+    return language.startsWith('zh') ? 'zh' : language.startsWith('en') ? 'en' : 'other'
+  }
+  const canAccept = (article, category, enforceCategory) => {
+    if (enforceCategory && (counts[category] ?? 0) >= (CATEGORY_CAPS[category] ?? 3)) return false
+    const kind = article.sourceKind ?? sourceClass(article)
+    if ((sourceCounts[article.sourceId] ?? 0) >= sourceCap(kind)) return false
+    if (languageOf(article) === 'zh' && languages.zh >= 12) return false
+    if (kind === 'secondary-cn' && secondaryCount >= 8) return false
+    return true
+  }
+  const take = (article, category, extra = {}) => {
+    const kind = article.sourceKind ?? sourceClass(article)
+    counts[category] = (counts[category] ?? 0) + 1
+    sourceCounts[article.sourceId] = (sourceCounts[article.sourceId] ?? 0) + 1
+    languages[languageOf(article)] += 1
+    if (kind === 'secondary-cn') secondaryCount += 1
+    used.add(article.id)
+    picked.push({ ...article, category, ...extra })
+  }
+  const accept = (entry, enforceCategory) => {
     if (picked.length >= topN) return
     const index = Number(entry?.i ?? entry?.index) - 1
     const article = candidates[index]
     if (!article || used.has(article.id)) return
     const category = CATEGORY_IDS.has(entry?.category) ? entry.category : article.category
-    if (enforceCaps && (counts[category] ?? 0) >= (CATEGORY_CAPS[category] ?? 3)) return
-    counts[category] = (counts[category] ?? 0) + 1
+    if (!canAccept(article, category, enforceCategory)) return
     const score = Number(entry?.score)
     const creatorScore = Number(entry?.creatorScore ?? entry?.creator_score)
-    picked.push({
-      ...article,
-      category,
+    take(article, category, {
       _llmHeat: Number.isFinite(score) ? clamp(Math.round(score), 55, 99) : 0,
       creatorScore: Number.isFinite(creatorScore) ? clamp(Math.round(creatorScore), 20, 98) : undefined,
       creatorReason: cleanReason(entry?.creatorReason ?? entry?.creator_reason ?? ''),
       reason: cleanReason(entry?.reason),
     })
-    used.add(article.id)
   }
   for (const entry of selection) accept(entry, true)
   // The model may have produced a complete, diverse list that the hard category
   // caps trimmed. Fill those slots from its own order before falling back to the
-  // deterministic ranking, so reasons and heat stay aligned with the model.
+  // deterministic ranking, while still protecting the Chinese-secondary and
+  // per-source limits.
   for (const entry of selection) accept(entry, false)
   for (const article of fallback) {
     if (picked.length >= topN) break
     if (used.has(article.id)) continue
-    used.add(article.id)
-    picked.push({ ...article, reason: article.reason ?? '' })
+    const category = CATEGORY_IDS.has(article.category) ? article.category : 'tech'
+    if (!canAccept(article, category, false)) continue
+    take(article, category, { reason: article.reason ?? '' })
   }
   return picked
 }
@@ -477,7 +509,7 @@ export async function rankArticles(articles, { now = Date.now(), topN = 30, llmR
   const candidates = heuristic.slice(0, Math.min(64, heuristic.length))
   try {
     const selection = await llmRank(candidates, { now, topN, windowHours })
-    const picked = ensureFloors(applyLlmSelection(candidates, selection, { fallback: heuristic, topN }), heuristic, topN)
+    const picked = applyLlmSelection(candidates, selection, { fallback: heuristic, topN })
     return {
       items: finalizeRanking(picked, { now, topN, llm: picked.some(item => item._llmHeat) }),
       candidates: heuristic.length,

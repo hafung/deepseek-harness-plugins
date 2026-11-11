@@ -43,6 +43,7 @@ const ctx = {
   effect(callback) { const dispose = callback(); disposers.push(dispose); return () => {}; },
   inject(keys, callback) { callback({ theme, effect: ctx.effect }); },
   theme,
+  get(name) { return name === 'theme' ? theme : undefined },
   slots: {
     inject(name, callback) { callback(); },
     register(options, Component) { slots[options.name] = { options, Component }; return () => {}; },

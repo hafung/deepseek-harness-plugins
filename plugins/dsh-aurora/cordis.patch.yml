@@ -1,8 +1,6 @@
-# The shipped official brand owns the same two single slots. A replacement brand
-# must withdraw it so the sidebar has exactly one occupant; uninstalling this
-# bundle restores it.
-- id: ui-brand-official
-  disabled: true
+# The shipped official brand stays enabled: both packages register the same two
+# single slots and the later registration (this plugin) covers it, so disabling
+# or uninstalling this plugin simply reveals the official brand again.
 - insert:
     - id: local-aurora
       name: '@local/dsh-aurora'

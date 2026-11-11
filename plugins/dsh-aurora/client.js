@@ -375,8 +375,13 @@ window.__ModuleLoader__.load({
       }
     }
 
-    const settingsStore = createStore(readSettings())
-    const noticeStore = createStore('')
+    // A reload can evaluate this bundle more than once; keep one store per page
+    // so every instance (brand, settings page) observes the same values.
+    const SHARED_KEY = '__dshAuroraShared'
+    const shared = window[SHARED_KEY] || (window[SHARED_KEY] = {})
+    const settingsStore = shared.settingsStore || (shared.settingsStore = createStore(readSettings()))
+    const noticeStore = shared.noticeStore || (shared.noticeStore = createStore(''))
+    const errorStore = shared.errorStore || (shared.errorStore = createStore(''))
     let lastSaved = ''
 
     function persist(settings) {
@@ -402,6 +407,10 @@ window.__ModuleLoader__.load({
 
     function useNotice() {
       return useSyncExternalStore(noticeStore.subscribe, noticeStore.get, noticeStore.get)
+    }
+
+    function useError() {
+      return useSyncExternalStore(errorStore.subscribe, errorStore.get, errorStore.get)
     }
 
     function compressImage(file, maxEdge, quality) {
@@ -639,6 +648,7 @@ window.__ModuleLoader__.load({
     function ThemeSettings() {
       const settings = useSettings()
       const notice = useNotice()
+      const skinError = useError()
       const dimPercent = Math.round(settings.dim * 100)
       const customLogo = settings.mark === 'custom'
 
@@ -692,6 +702,10 @@ window.__ModuleLoader__.load({
           h('h2', { className: 'dsh-aurora-page-title' }, '外观与背景'),
           h('p', { className: 'dsh-aurora-page-hint' },
             '替换侧栏左上角的品牌文字与标志，并用光效或自己的图片重绘整个应用背景。修改立即生效，保存在本机。')),
+
+        skinError
+          ? h('p', { className: 'dsh-aurora-error' }, `皮肤未能完整加载：${skinError}`)
+          : null,
 
         h('section', { className: 'dsh-aurora-section' },
           h('h3', { className: 'dsh-aurora-section-title' }, '品牌'),
@@ -894,6 +908,17 @@ body[data-ds-dark-theme] .dsh-aurora-mark {
   color: var(--dsw-alias-label-secondary, #666);
   font-size: 12.5px;
   line-height: 1.6;
+}
+
+.dsh-aurora-error {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary, #a03938) 12%, transparent);
+  color: var(--dsw-alias-state-error-primary, #a03938);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .dsh-aurora-section { display: grid; gap: 14px; }
@@ -1116,10 +1141,6 @@ body[data-ds-dark-theme] .dsh-aurora-mark {
 }
 
 /* ── dsh-aurora: canvas ────────────────────────────────────────────── */
-html {
-  background-color: var(--aurora-base);
-}
-
 body {
   background: transparent !important;
 }
@@ -1222,38 +1243,12 @@ body::after {
     }
 
     return {
-      inject: ['slots', 'theme'],
+      inject: ['slots'],
       apply(ctx) {
-        ctx.effect(() => {
-          const style = document.createElement('style')
-          style.setAttribute('data-dsh-aurora', '')
-          style.textContent = buildCss()
-          document.head.appendChild(style)
-          return () => { style.remove() }
-        }, 'dsh-aurora: skin stylesheet')
+        errorStore.set('')
 
-        ctx.effect(() => {
-          applySkin(settingsStore.get())
-          const unsubscribe = settingsStore.subscribe(() => applySkin(settingsStore.get()))
-          return () => {
-            unsubscribe()
-            clearSkin()
-          }
-        }, 'dsh-aurora: settings -> document')
-
-        ctx.effect(
-          () => ctx.theme.overrideTokens(SOURCE, TOKENS),
-          'dsh-aurora: glass token overrides',
-        )
-
-        ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({
-          name: 'sidebar.brand.mark',
-        }, BrandMark))
-
-        ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({
-          name: 'sidebar.brand.name',
-        }, BrandName))
-
+        // The settings entry comes first: even when the skin cannot apply, the
+        // page stays reachable and reports what went wrong.
         ctx.slots.inject('settings.section', () => ctx.slots.register({
           name: 'settings.section',
           id: SECTION_ID,
@@ -1265,6 +1260,59 @@ body::after {
           name: 'settings.section.icon',
           id: SECTION_ID,
         }, AuroraIcon))
+
+        try {
+          // `theme` is optional: read it through ctx.get so the plugin keeps
+          // working (without glass tokens) when the service is absent, and never
+          // touch ctx.theme without declaring it in inject.
+          let theme
+          try {
+            theme = typeof ctx.get === 'function' ? ctx.get('theme') : undefined
+          } catch {
+            theme = undefined
+          }
+
+          ctx.effect(() => {
+            const previous = document.querySelector('style[data-dsh-aurora]')
+            if (previous) previous.remove()
+            const style = document.createElement('style')
+            style.setAttribute('data-dsh-aurora', '')
+            style.textContent = buildCss()
+            document.head.appendChild(style)
+            return () => { style.remove() }
+          }, 'dsh-aurora: stylesheet')
+
+          ctx.effect(() => {
+            applySkin(settingsStore.get())
+            const unsubscribe = settingsStore.subscribe(() => applySkin(settingsStore.get()))
+            return () => {
+              unsubscribe()
+              clearSkin()
+            }
+          }, 'dsh-aurora: settings -> document')
+
+          if (theme && typeof theme.overrideTokens === 'function') {
+            ctx.effect(
+              () => theme.overrideTokens(SOURCE, TOKENS),
+              'dsh-aurora: glass token overrides',
+            )
+          }
+
+          // The shipped official brand owns these single slots at priority 0;
+          // a lower priority shadows it, and dropping our registration reveals
+          // the official brand again.
+          ctx.slots.inject('sidebar.brand.mark', () => ctx.slots.register({
+            name: 'sidebar.brand.mark',
+            priority: -1,
+          }, BrandMark))
+
+          ctx.slots.inject('sidebar.brand.name', () => ctx.slots.register({
+            name: 'sidebar.brand.name',
+            priority: -1,
+          }, BrandName))
+        } catch (error) {
+          errorStore.set(error && error.message ? error.message : String(error))
+        }
       },
     }
   },
