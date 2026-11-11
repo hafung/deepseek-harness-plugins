@@ -1,0 +1,55 @@
+{
+  "name": "@local/dsh-hotspot",
+  "version": "1.2.0",
+  "private": true,
+  "title": "热点",
+  "description": "从 274 个精选 RSS 信源抓取最近 72 小时资讯并筛选 Top 30，附自媒体选题评分；支持网感转写、收藏与看过归档。",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "package.json",
+    "README.md",
+    "sources.json",
+    "server/*.js",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "hafung",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hafung/deepseek-harness-plugins.git",
+    "directory": "plugins/dsh-hotspot"
+  },
+  "homepage": "https://github.com/hafung/deepseek-harness-plugins/tree/main/plugins/dsh-hotspot#readme",
+  "bugs": {
+    "url": "https://github.com/hafung/deepseek-harness-plugins/issues"
+  }
+}

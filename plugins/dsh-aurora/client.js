@@ -1,4 +1,4 @@
-// 极光主题：替换侧栏品牌 + 全应用背景光效，配置入口在「设置 → 外观」。
+// 极光主题：替换侧栏品牌 + 全应用背景光效，配置入口在「设置 → 皮肤」。
 //
 // 结构：
 //   1. 调色板 / 效果定义        —— 纯数据，想加效果只加一条
@@ -1258,7 +1258,7 @@ body::after {
           name: 'settings.section',
           id: SECTION_ID,
           order: 30,
-          label: '外观',
+          label: '皮肤',
         }, ThemeSettings))
 
         ctx.slots.inject('settings.section.icon', () => ctx.slots.register({

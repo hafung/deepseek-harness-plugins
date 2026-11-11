@@ -1,0 +1,3 @@
+- insert:
+    - id: local-hotspot
+      name: '@local/dsh-hotspot'

@@ -13,7 +13,7 @@
 
 ## 设置入口
 
-**账号菜单 → 设置 → 外观**（左下角头像旁的菜单）。侧栏、顶栏都不放常驻按钮。
+**账号菜单 → 设置 → 皮肤**（左下角头像旁的菜单）。侧栏、顶栏都不放常驻按钮。
 
 > 窗口最顶部的 **应用 / 编辑** 菜单是桌面端 Electron 主进程用原生菜单画的，插件系统没有向其中加项目的接口。设置类是插件配置的常规位置，所以放在这里；如果更希望放在侧栏的「更多」菜单里，改 `client.js` 末尾的一处注册即可。
 
@@ -43,7 +43,7 @@
 对照 DeepSeek Harness Desktop `0.2.2-rc.1`。插件注册以下扩展点：
 
 - `sidebar.brand.mark` / `sidebar.brand.name`：侧栏品牌
-- `settings.section` / `settings.section.icon`：设置里的「外观」页与导航图标
+- `settings.section` / `settings.section.icon`：设置里的「皮肤」页与导航图标
 - `theme.overrideTokens`：玻璃质感背景 token
 
 样式只使用 `--dsw-*` 主题 token，亮色/暗色主题各自取色；不读取任何其它插件的 DOM 或样式。

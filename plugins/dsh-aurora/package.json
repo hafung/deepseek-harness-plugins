@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-aurora",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "title": "极光主题",
   "description": "替换侧栏品牌文字与标志，并用可选光效或壁纸重绘整个应用背景。",

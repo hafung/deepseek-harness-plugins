@@ -3,9 +3,9 @@
 [![Tests](https://github.com/hafung/deepseek-harness-plugins/actions/workflows/test.yml/badge.svg)](https://github.com/hafung/deepseek-harness-plugins/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发的社区插件：管理待办、复用专家提示词，以及自定义应用外观。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发的社区插件：管理待办、复用专家提示词、自动筛选每日热点，以及自定义应用外观。
 
-Community plugins for DeepSeek Harness: todos, reusable expert prompts, and appearance customization.
+Community plugins for DeepSeek Harness: todos, reusable expert prompts, a daily RSS hotspot briefing, and appearance customization.
 
 每个插件都可以单独安装、启用和升级，按各自版本发布。此项目由社区维护，与 DeepSeek 官方无隶属关系。
 
@@ -15,7 +15,8 @@ Community plugins for DeepSeek Harness: todos, reusable expert prompts, and appe
 | --- | --- | --- | --- |
 | [待办清单](plugins/dsh-todo-list/README.md) | `1.3.0` | 管理本地待办，后台派发给主 Agent，跟踪会话状态，导入导出 JSON | `0.2.0-rc.2` |
 | [专家](plugins/dsh-experts/README.md) | `1.0.0` | 管理专家提示词，分类、收藏与搜索，一键载入对话草稿，导入导出 JSON | `0.2.2-rc.1` |
-| [极光主题](plugins/dsh-aurora/README.md) | `0.5.0` | 自定义侧栏品牌与标志，八种背景光效、本地壁纸、模糊与压暗 | `0.2.2-rc.1` |
+| [热点](plugins/dsh-hotspot/README.md) | `1.2.0` | 274 个精选 RSS 信源，72 小时时效窗口，AI 精排 Top 30，自媒体选题评分，收藏与看过归档，网感转写 | `0.2.2-rc.1` |
+| [极光主题](plugins/dsh-aurora/README.md) | `0.5.1` | 自定义侧栏品牌与标志，八种背景光效、本地壁纸、模糊与压暗 | `0.2.2-rc.1` |
 
 上表列出各插件开发时对照的版本，其他 Harness 版本请自行验证。预览版的插件接口可能变化；遇到问题请附上 Harness 版本和复现步骤，提交 [Issue](https://github.com/hafung/deepseek-harness-plugins/issues)。
 
@@ -61,6 +62,7 @@ deepseek-harness-plugins/
 └── plugins/
     ├── dsh-todo-list/   ← 待办清单
     ├── dsh-experts/     ← 专家
+    ├── dsh-hotspot/     ← 热点
     └── dsh-aurora/      ← 极光主题
 ```
 
@@ -70,7 +72,8 @@ deepseek-harness-plugins/
 
 - **待办清单**：从左侧栏打开；「发给主 Agent」会在默认工作区创建会话，清单页面保持打开，执行完成后由你验收。
 - **专家**：从左侧栏打开；「应用」会把提示词写入当前会话草稿，已有内容时追加，不自动发送。
-- **极光主题**：打开 **账号菜单 → 设置 → 外观**；会替换官方侧栏品牌，停用或卸载后恢复。
+- **热点**：从左侧栏打开；首次会并发扫描 274 个精选 RSS 源，客户端打开期间每小时自动更新 Top 30。卡片可「已知晓」归档到看过、点星标收藏；「网感转写」会把非中文原文改写成简中文章。
+- **极光主题**：打开 **账号菜单 → 设置 → 皮肤**；会替换官方侧栏品牌，停用或卸载后恢复。
 
 插件设置和清单保存在本机。待办清单与专家提供 JSON 导出，建议升级前备份；会话、附件由 Harness 自己保存。更多行为及限制见各插件的说明。
 
@@ -99,6 +102,7 @@ Linux 上若缺少浏览器系统库，可改用 `pnpm exec playwright install -
 ```sh
 pnpm test:todo
 pnpm test:experts
+pnpm test:hotspot
 pnpm test:aurora
 ```
 
