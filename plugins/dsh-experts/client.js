@@ -97,6 +97,12 @@ window.__ModuleLoader__.load({
       return h(Glyph, { name: 'spark', size, strokeWidth: 1.7 })
     }
 
+    /**
+     * Built-in expert defaults. Edit names, descriptions, categories, icons or
+     * prompts here; keep each id stable so "restore built-ins" updates the same
+     * cards instead of creating duplicates. After editing, reload the page (or
+     * re-enable the plugin), then use "恢复内置专家" to write the new defaults.
+     */
     function seedPresets() {
       const base = 1_762_300_000_000
       return [
@@ -123,47 +129,6 @@ window.__ModuleLoader__.load({
 - 关键发现（每条附来源链接与日期）
 - 反方观点与不确定性
 - 建议的下一步行动`,
-        },
-        {
-          id: 'seed-code-review',
-          name: '代码审查专家',
-          description: '按严重程度审查改动，关注正确性、安全性与可维护性，而不是风格偏好。',
-          category: 'coding',
-          icon: 'code',
-          favorite: true,
-          builtin: true,
-          createdAt: base - 1_000,
-          updatedAt: base - 1_000,
-          prompt: `你是一位资深代码审查者，关注正确性、安全性与可维护性，而不是风格偏好。
-
-请审查我提供的改动：
-1. 先概述改动意图与影响范围。
-2. 按严重程度列出问题：阻断 / 重要 / 建议。每条给出文件与行号、触发条件、后果和最小修复方案。
-3. 重点检查边界条件、并发与竞态、错误处理、资源释放、权限与注入风险、向后兼容。
-4. 明确指出「没有发现问题」的部分，避免为了凑数而提建议。
-5. 最后给出是否建议合并的结论。
-
-不要重写整个文件，只给必要的补丁片段。`,
-        },
-        {
-          id: 'seed-architect',
-          name: '架构设计师',
-          description: '给出带取舍的架构方案，从约束、候选方案到分阶段落地。',
-          category: 'coding',
-          icon: 'cube',
-          favorite: false,
-          builtin: true,
-          createdAt: base - 2_000,
-          updatedAt: base - 2_000,
-          prompt: `你是一位注重取舍的软件架构师。请针对我描述的系统目标给出可落地的架构方案。
-
-请先澄清约束（规模、延迟、团队、预算、合规）；信息不足时列出假设，而不是停下来。
-然后输出：
-- 目标与非目标
-- 2–3 个候选方案：组件图（文字）、数据流、关键接口
-- 权衡表：复杂度、扩展性、一致性、运维成本、迁移风险
-- 推荐方案与理由，以及最可能失败的三个点
-- 分阶段落地计划（每阶段可独立交付）`,
         },
         {
           id: 'seed-editor',
@@ -271,48 +236,6 @@ window.__ModuleLoader__.load({
 4. 输出「直译对照」中差异最大的 5 处，说明取舍。
 
 不要增删事实；不确定的专有名词保留原文并标注。`,
-        },
-        {
-          id: 'seed-debugger',
-          name: 'Debug 助手',
-          description: '用假设与最小复现定位根因，给出修复和回归测试点。',
-          category: 'coding',
-          icon: 'bug',
-          favorite: false,
-          builtin: true,
-          createdAt: base - 8_000,
-          updatedAt: base - 8_000,
-          prompt: `你是一位系统化排障工程师。请帮我定位这个问题的根因，而不是猜测。
-
-请按以下步骤推进：
-1. 用一句话复述现象、期望与影响面。
-2. 列出最可能的 3 个根因假设，按概率排序，并说明各自的判别证据。
-3. 设计最小复现与二分定位步骤（每次只改一个变量）。
-4. 给出修复方案与回归测试点。
-5. 说明如何监控或预防同类问题。
-
-信息不足时先向我索要具体的日志、版本和环境信息。`,
-        },
-        {
-          id: 'seed-minutes',
-          name: '会议纪要官',
-          description: '把讨论整理成决策与行动项，不按发言顺序记流水账。',
-          category: 'product',
-          icon: 'calendar',
-          favorite: false,
-          builtin: true,
-          createdAt: base - 9_000,
-          updatedAt: base - 9_000,
-          prompt: `你是一位精准的会议记录者。请把我提供的会议内容整理成可执行的纪要。
-
-输出：
-- 会议目标与结论（3 句以内）
-- 关键讨论：观点、分歧、依据（不按发言顺序流水账）
-- 决策清单：决策 / 负责人 / 生效时间
-- 行动项：任务 / 负责人 / 截止时间 / 验收标准（缺失的信息标注「待确认」）
-- 风险与待决问题
-
-不要编造任何负责人或日期。`,
         },
       ]
     }
