@@ -1,0 +1,55 @@
+{
+  "name": "@local/dsh-learn-english",
+  "version": "1.0.0",
+  "private": true,
+  "title": "Learn English",
+  "description": "A private English studio for free conversation and native-style rewriting, with Edge and local Qwen voice playback.",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "package.json",
+    "README.md",
+    "server/*.js",
+    "vendor/ws/**/*.js",
+    "vendor/ws/package.json",
+    "vendor/ws/LICENSE",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "hafung",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hafung/deepseek-harness-plugins.git",
+    "directory": "plugins/dsh-learn-english"
+  },
+  "homepage": "https://github.com/hafung/deepseek-harness-plugins/tree/main/plugins/dsh-learn-english#readme",
+  "bugs": {
+    "url": "https://github.com/hafung/deepseek-harness-plugins/issues"
+  }
+}

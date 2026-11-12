@@ -12,11 +12,12 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "test": "pnpm run test:todo && pnpm run test:experts && pnpm run test:hotspot && pnpm run test:aurora",
+    "test": "pnpm run test:todo && pnpm run test:experts && pnpm run test:hotspot && pnpm run test:aurora && pnpm run test:learn-english",
     "test:todo": "node tests/dsh-todo-list.smoke.cjs",
     "test:experts": "node tests/dsh-experts.smoke.cjs",
     "test:hotspot": "node tests/dsh-hotspot.smoke.cjs",
-    "test:aurora": "node tests/dsh-aurora.smoke.cjs"
+    "test:aurora": "node tests/dsh-aurora.smoke.cjs",
+    "test:learn-english": "node tests/dsh-learn-english.host.cjs && node tests/dsh-learn-english.smoke.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1",
