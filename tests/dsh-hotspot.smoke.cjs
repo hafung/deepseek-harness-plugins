@@ -37,6 +37,11 @@ const root = require('react-dom/client').createRoot(document.getElementById('roo
 const slots = {};
 const calls = [];
 window.calls = calls;
+window.clipboardWrites = [];
+Object.defineProperty(navigator, 'clipboard', {
+  configurable: true,
+  value: { writeText: async text => { window.clipboardWrites.push(text); } },
+});
 const ctx = {
   slots: {
     inject: (key, callback) => callback(),
@@ -191,6 +196,13 @@ async function check() {
     await page.getByRole('heading', { name: /热点/ }).waitFor()
     await page.getByRole('heading', { name: /OpenAI 发布新一代推理模型/ }).waitFor()
     assert.equal(await page.locator('.hs-card').count(), 2)
+    assert.equal(await page.locator('.hs-copy-button').count(), 3)
+    const copyLead = page.getByRole('button', { name: /复制文章链接：OpenAI 发布新一代推理模型/ })
+    await copyLead.click()
+    await page.waitForFunction(() => window.clipboardWrites.includes('https://openai.com/index/new-model'))
+    const copiedLead = page.getByRole('button', { name: /已复制链接：OpenAI 发布新一代推理模型/ })
+    await copiedLead.waitFor()
+    assert.match(await copiedLead.getAttribute('class'), /is-copied/)
     await page.getByRole('tab', { name: /商业/ }).click()
     await page.getByRole('heading', { name: /AI 芯片公司完成新一轮融资/ }).waitFor()
     assert.equal(await page.locator('.hs-card').count(), 0)

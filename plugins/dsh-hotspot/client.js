@@ -45,6 +45,7 @@ window.__ModuleLoader__.load({
       arrow: ['M5 12h13M13 6l6 6-6 6'],
       back: ['M19 12H6M11 5l-7 7 7 7'],
       check: ['m5 12.5 4.5 4.5L19 7'],
+      copy: ['M9 9h10v10H9z', 'M5 15H4V4h11v1'],
       star: ['m12 3.6 2.55 5.17 5.7.83-4.12 4.02.97 5.68L12 16.62 6.9 19.3l.97-5.68L3.75 9.6l5.7-.83L12 3.6Z'],
       alert: ['M12 4 2.8 20h18.4L12 4Z', 'M12 9.5V14', 'M12 17.2v.3'],
       inbox: ['M4.5 5.5h15v13h-15z', 'M4.5 13h4l1.4 2.2h4.2L15.5 13h4'],
@@ -409,6 +410,41 @@ window.__ModuleLoader__.load({
       }, firstChar(title))
     }
 
+    function CopyLinkButton({ url, title }) {
+      const [status, setStatus] = useState('idle')
+      const timer = useRef(0)
+
+      useEffect(() => () => {
+        if (timer.current) clearTimeout(timer.current)
+      }, [])
+
+      async function copy(event) {
+        event.preventDefault()
+        event.stopPropagation()
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable')
+          await navigator.clipboard.writeText(url)
+          setStatus('copied')
+        } catch {
+          setStatus('error')
+        }
+        if (timer.current) clearTimeout(timer.current)
+        timer.current = setTimeout(() => setStatus('idle'), 1800)
+      }
+
+      const label = status === 'copied' ? '已复制链接' : status === 'error' ? '复制失败，请手动复制' : '复制文章链接'
+      return h('button', {
+        type: 'button',
+        className: `hs-copy-button${status === 'copied' ? ' is-copied' : ''}${status === 'error' ? ' is-error' : ''}`,
+        title: title ? `${label}：${title}` : label,
+        'aria-label': title ? `${label}：${title}` : label,
+        onClick: copy,
+      },
+      status === 'copied' ? h(Glyph, { name: 'check', size: 13 }) : h(Glyph, { name: 'copy', size: 13 }),
+      h('span', { className: 'hs-sr-only', role: 'status' },
+        status === 'copied' ? '链接已复制' : status === 'error' ? '复制失败' : ''))
+    }
+
     function MetaLine({ item, now }) {
       return h('div', { className: 'hs-meta' },
         h('span', { className: 'hs-meta-source', title: item.sourceTitles?.join(' / ') || item.sourceTitle },
@@ -418,7 +454,8 @@ window.__ModuleLoader__.load({
         h('time', { dateTime: new Date(item.publishedAt || Date.now()).toISOString() }, formatRelative(item.publishedAt, now)),
         item.coverage > 1 && h('span', { className: 'hs-coverage' },
           h(Glyph, { name: 'layers', size: 12 }),
-          `${item.coverage} 源`))
+          `${item.coverage} 源`),
+        h(CopyLinkButton, { url: item.url, title: item.title }))
     }
 
     function Reason({ item }) {
@@ -1050,6 +1087,12 @@ window.__ModuleLoader__.load({
       .hs-meta-source > span:last-child { overflow:hidden; max-width:280px; text-overflow:ellipsis; white-space:nowrap; }
       .hs-meta-sep { opacity:.38; }
       .hs-coverage { display:inline-flex; align-items:center; gap:4px; margin-left:3px; padding:2px 7px; border-radius:999px; background:color-mix(in srgb, var(--hs-cat) 8%, transparent); color:var(--hs-cat); font-size:9.5px; font-weight:620; }
+      .hs-copy-button { display:inline-grid; place-items:center; flex:none; width:24px; height:24px; margin:-2px 0 -2px 1px; padding:0; border:0; border-radius:6px; background:transparent; opacity:.75; transition:color .16s ease, background-color .16s ease, opacity .16s ease; }
+      .hs-page button.hs-copy-button { color:var(--hs-muted); }
+      .hs-page button.hs-copy-button:hover { color:var(--hs-ink); background:var(--hs-hover); opacity:1; }
+      .hs-page button.hs-copy-button.is-copied { color:var(--hs-success); background:color-mix(in srgb, var(--hs-success) 9%, transparent); opacity:1; }
+      .hs-page button.hs-copy-button.is-error { color:var(--hs-error); background:color-mix(in srgb, var(--hs-error) 8%, transparent); opacity:1; }
+      .hs-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
       .hs-source-mark { display:inline-grid; place-items:center; flex:none; border-radius:50%; background:color-mix(in srgb, var(--hs-cat) 10%, var(--hs-surface-2)); color:var(--hs-cat); font-family:var(--hs-serif); font-weight:650; line-height:1; }
       .hs-actions { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:23px; padding-top:18px; border-top:1px solid color-mix(in srgb, var(--hs-line) 76%, transparent); }
       .hs-action-cluster { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex-wrap:wrap; }
