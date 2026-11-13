@@ -55,9 +55,17 @@ window.__ModuleLoader__.load({
         'controls.newChat': 'New chat',
         'controls.newChatHint': 'Files the current chat into history, then starts a blank one.',
         'controls.history': 'Chat history',
+        'controls.export': 'Export',
         'controls.exportPdf': 'Export PDF',
-        'controls.exporting': 'Generating PDF',
+        'controls.exportZip': 'Export ZIP',
+        'controls.exporting': 'Exporting',
+        'controls.exportPdfStage': 'Generating PDF',
+        'controls.exportPreparing': 'Preparing…',
+        'controls.exportAudio': 'Fetching audio',
+        'controls.exportZipping': 'Packaging ZIP',
         'controls.exportPdfHint': 'Download this conversation as a print-ready A4 PDF.',
+        'controls.exportPdfDesc': 'A4 layout, downloaded directly',
+        'controls.exportZipDesc': 'HTML + Edge / Qwen audio, playable offline',
         'history.title': 'Chat history',
         'history.close': 'Close history',
         'history.empty': 'No saved chats yet. Starting a new chat files the current one here automatically.',
@@ -69,7 +77,10 @@ window.__ModuleLoader__.load({
         'pdf.title': 'English practice notes',
         'pdf.lede': 'A private conversation record from your English studio.',
         'pdf.footer': 'Learn English · DeepSeek Harness',
+        'zip.audioMissing': 'No audio available for this reply.',
+        'zip.note': 'Open index.html in a browser to read and listen offline. Keep the audio folder beside it.',
         'errors.pdf': 'The PDF could not be generated. Please try again.',
+        'errors.zip': 'The ZIP could not be generated. Please try again.',
         'mode.free.name': 'Free talk',
         'mode.free.tag': 'Conversation',
         'mode.free.desc': 'Chat with Alex like a friend. He always replies in English.',
@@ -164,9 +175,17 @@ window.__ModuleLoader__.load({
         'controls.newChat': '新对话',
         'controls.newChatHint': '当前对话会先存入历史，再从空白页开始。',
         'controls.history': '历史对话',
+        'controls.export': '导出',
         'controls.exportPdf': '导出 PDF',
-        'controls.exporting': '正在生成 PDF',
+        'controls.exportZip': '导出 ZIP',
+        'controls.exporting': '正在导出',
+        'controls.exportPdfStage': '正在生成 PDF',
+        'controls.exportPreparing': '正在准备…',
+        'controls.exportAudio': '正在获取音频',
+        'controls.exportZipping': '正在打包 ZIP',
         'controls.exportPdfHint': '直接下载当前对话的 A4 打印排版 PDF。',
+        'controls.exportPdfDesc': 'A4 排版，直接下载 PDF',
+        'controls.exportZipDesc': 'HTML + Edge / Qwen 音频，离线可播放',
         'history.title': '历史对话',
         'history.close': '关闭历史',
         'history.empty': '还没有历史对话。点「新对话」后，当前聊天会自动保存在这里。',
@@ -178,7 +197,10 @@ window.__ModuleLoader__.load({
         'pdf.title': '英语练习记录',
         'pdf.lede': '来自你的英语练习室的一段私人对话记录。',
         'pdf.footer': 'Learn English · DeepSeek Harness',
+        'zip.audioMissing': '本段没有可用音频。',
+        'zip.note': '打开 index.html 即可离线阅读并播放音频；请保持 audio 文件夹与 index.html 位于同一目录。',
         'errors.pdf': 'PDF 生成失败，请重试。',
+        'errors.zip': 'ZIP 生成失败，请重试。',
         'mode.free.name': '自由对话',
         'mode.free.tag': 'Free talk',
         'mode.free.desc': '和 Alex 像朋友一样聊天，他只用英文回复。',
@@ -286,6 +308,7 @@ window.__ModuleLoader__.load({
       alert: ['M12 4 2.9 20h18.2L12 4Z', 'M12 9.4v4.4', 'M12 17.1v.3'],
       refresh: ['M20 11a8 8 0 1 0-2.3 6.7', 'M20 4.5V11h-6.4'],
       clock: ['M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z', 'M12 7.7V12l3.1 1.9'],
+      archive: ['M4 8.2h16v11.3H4z', 'M3 4.5h18v3.7H3z', 'M9.2 12.2h5.6'],
       sparkles: [
         'M12 3.4l1.8 4.9 4.9 1.8-4.9 1.8L12 16.8l-1.8-4.9-4.9-1.8 4.9-1.8L12 3.4Z',
         'M18.6 15.3l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z',
@@ -579,12 +602,23 @@ window.__ModuleLoader__.load({
       }
     }
 
-    function pdfFilename(mode) {
+    function exportStamp() {
       const now = new Date()
-      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
         now.getDate(),
       ).padStart(2, '0')}`
-      return `learn-english-${mode}-${stamp}.pdf`
+    }
+
+    function exportBaseName(mode) {
+      return `learn-english-${mode}-${exportStamp()}`
+    }
+
+    function pdfFilename(mode) {
+      return `${exportBaseName(mode)}.pdf`
+    }
+
+    function zipFilename(mode) {
+      return `${exportBaseName(mode)}.zip`
     }
 
     function fillPdfRoundRect(ctx, x, y, width, height, radius, fill, stroke) {
@@ -953,7 +987,7 @@ window.__ModuleLoader__.load({
       return new Blob(chunks, { type: 'application/pdf' })
     }
 
-    function downloadPdfBlob(blob, filename) {
+    function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -967,7 +1001,377 @@ window.__ModuleLoader__.load({
 
     async function downloadConversationPdf({ mode, messages, t, locale }) {
       const blob = await buildConversationPdf({ mode, messages, t, locale })
-      downloadPdfBlob(blob, pdfFilename(mode))
+      downloadBlob(blob, pdfFilename(mode))
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, character => {
+        if (character === '&') return '&amp;'
+        if (character === '<') return '&lt;'
+        if (character === '>') return '&gt;'
+        if (character === '"') return '&quot;'
+        return '&#39;'
+      })
+    }
+
+    function zipCrc32(bytes) {
+      let crc = 0xffffffff
+      for (let index = 0; index < bytes.length; index += 1) {
+        crc = (crc >>> 8) ^ ZIP_CRC_TABLE[(crc ^ bytes[index]) & 0xff]
+      }
+      return (crc ^ 0xffffffff) >>> 0
+    }
+
+    const ZIP_CRC_TABLE = (() => {
+      const table = new Uint32Array(256)
+      for (let index = 0; index < 256; index += 1) {
+        let value = index
+        for (let bit = 0; bit < 8; bit += 1) {
+          value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1
+        }
+        table[index] = value >>> 0
+      }
+      return table
+    })()
+
+    function zipDosStamp() {
+      const now = new Date()
+      const year = Math.max(1980, now.getFullYear())
+      return {
+        date: ((year - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate(),
+        time: (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2),
+      }
+    }
+
+    function zipBlob(files) {
+      const encoder = new TextEncoder()
+      const stamp = zipDosStamp()
+      const localParts = []
+      const centralParts = []
+      let offset = 0
+      for (const file of files) {
+        const name = encoder.encode(file.name)
+        const data = file.bytes instanceof Uint8Array ? file.bytes : new Uint8Array(file.bytes)
+        const crc = zipCrc32(data)
+        const local = new Uint8Array(30 + name.length)
+        const lv = new DataView(local.buffer)
+        lv.setUint32(0, 0x04034b50, true)
+        lv.setUint16(4, 20, true)
+        lv.setUint16(6, 0x0800, true)
+        lv.setUint16(8, 0, true)
+        lv.setUint16(10, stamp.time, true)
+        lv.setUint16(12, stamp.date, true)
+        lv.setUint32(14, crc, true)
+        lv.setUint32(18, data.length, true)
+        lv.setUint32(22, data.length, true)
+        lv.setUint16(26, name.length, true)
+        lv.setUint16(28, 0, true)
+        local.set(name, 30)
+        localParts.push(local, data)
+
+        const central = new Uint8Array(46 + name.length)
+        const cv = new DataView(central.buffer)
+        cv.setUint32(0, 0x02014b50, true)
+        cv.setUint16(4, 20, true)
+        cv.setUint16(6, 20, true)
+        cv.setUint16(8, 0x0800, true)
+        cv.setUint16(10, 0, true)
+        cv.setUint16(12, stamp.time, true)
+        cv.setUint16(14, stamp.date, true)
+        cv.setUint32(16, crc, true)
+        cv.setUint32(20, data.length, true)
+        cv.setUint32(24, data.length, true)
+        cv.setUint16(28, name.length, true)
+        cv.setUint16(30, 0, true)
+        cv.setUint16(32, 0, true)
+        cv.setUint16(34, 0, true)
+        cv.setUint16(36, 0, true)
+        cv.setUint32(38, 0, true)
+        cv.setUint32(42, offset, true)
+        central.set(name, 46)
+        centralParts.push(central)
+        offset += local.length + data.length
+      }
+
+      const centralOffset = offset
+      const centralSize = centralParts.reduce((total, part) => total + part.length, 0)
+      const end = new Uint8Array(22)
+      const ev = new DataView(end.buffer)
+      ev.setUint32(0, 0x06054b50, true)
+      ev.setUint16(4, 0, true)
+      ev.setUint16(6, 0, true)
+      ev.setUint16(8, files.length, true)
+      ev.setUint16(10, files.length, true)
+      ev.setUint32(12, centralSize, true)
+      ev.setUint32(16, centralOffset, true)
+      ev.setUint16(20, 0, true)
+      return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' })
+    }
+
+    async function fetchTtsAsset({ engine, text, voice, rate }) {
+      const response = await fetch(`${API}/tts`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ engine, text, voice, rate }),
+      })
+      if (!response.ok) throw new Error(`TTS ${engine} failed: ${response.status}`)
+      const blob = await response.blob()
+      if (!blob.size) throw new Error(`TTS ${engine} returned no audio`)
+      const type = response.headers.get('content-type') || ''
+      const ext = type.includes('wav') ? 'wav' : type.includes('mpeg') ? 'mp3' : engine === 'edge' ? 'mp3' : 'wav'
+      return { bytes: new Uint8Array(await blob.arrayBuffer()), ext }
+    }
+
+    function zipPlayerHtml(engine, voiceName, file, t) {
+      const label = engine === 'edge' ? t('tts.edge') : t('tts.qwen')
+      return `<div class="player" data-src="${escapeHtml(file)}">
+        <button class="play" type="button" aria-label="${escapeHtml(label)} · ${escapeHtml(voiceName)}">▶</button>
+        <span class="audio-copy"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(voiceName)}</span></span>
+        <span class="bar"><i></i></span>
+        <span class="time">0:00</span>
+      </div>`
+    }
+
+    function buildZipHtml({ mode, messages, t, locale, audioByMessage }) {
+      const printable = messages.filter(message => message.content.trim())
+      const modeName = t(`mode.${mode}.name`)
+      const conversationAt = Number(printable[0]?.at) || Date.now()
+      const date = pdfDate(locale, conversationAt)
+      const userTurns = printable.filter(message => message.role === 'user').length
+      const countLabel = `${userTurns} ${t('history.turnUnit')} · ${printable.length} ${t('history.messageUnit')}`
+      const rows = printable
+        .map((message, index) => {
+          const isUser = message.role === 'user'
+          const label = isUser
+            ? t('message.you')
+            : mode === 'polish'
+              ? t('message.editor')
+              : t('message.alex')
+          const number = String(index + 1).padStart(2, '0')
+          if (isUser) {
+            return `<article class="msg user">
+              <div class="msg-label"><span>${escapeHtml(label)}</span><span>${number}</span></div>
+              <div class="bubble">${escapeHtml(message.content)}</div>
+            </article>`
+          }
+          const audios = (audioByMessage.get(message.id) ?? [])
+            .slice()
+            .sort((a, b) => (a.engine === 'edge' ? -1 : 1))
+          const audioRow = audios.length
+            ? `<div class="audio-row">${audios
+                .map(audio => zipPlayerHtml(audio.engine, audio.voiceName, audio.file, t))
+                .join('')}</div>`
+            : `<p class="audio-missing">${escapeHtml(t('zip.audioMissing'))}</p>`
+          return `<article class="msg assistant${mode === 'polish' ? ' polish' : ''}">
+            <div class="msg-label"><span>${escapeHtml(label)}</span><span>${number}</span></div>
+            <div class="content">${escapeHtml(message.content)}</div>
+            ${audioRow}
+          </article>`
+        })
+        .join('')
+
+      return `<!doctype html>
+<html lang="${escapeHtml(locale || 'en')}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(t('pdf.title'))} · ${escapeHtml(modeName)}</title>
+<style>
+  @page { size: A4; margin: 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #f1ede5; color: #211f1b; font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .sheet { width: min(840px, calc(100% - 36px)); margin: 32px auto 56px; padding: 46px 52px 36px; border: 1px solid #dfd5c4; border-radius: 4px; background: #fffdf8; box-shadow: 0 24px 70px -38px rgba(33,31,27,.45); }
+  .doc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding-bottom: 22px; border-bottom: 1px solid #e5dccd; }
+  .brand { display: flex; align-items: flex-start; gap: 13px; }
+  .mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; color: #fffdf8; background: #211f1b; font-family: Georgia, "Songti SC", serif; font-size: 19px; font-weight: 600; letter-spacing: -.06em; }
+  .kicker { margin: 1px 0 5px; color: #8b8377; font-size: 9px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+  h1 { margin: 0; font-family: Georgia, "Songti SC", "Noto Serif SC", serif; font-size: 32px; line-height: 1.05; font-weight: 600; letter-spacing: -.04em; }
+  .doc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-top: 3px; color: #7b7468; font-size: 10px; line-height: 1.5; white-space: nowrap; }
+  .doc-meta strong { color: #211f1b; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .lede { margin: 19px 0 0; color: #756e63; font-size: 12px; line-height: 1.7; }
+  .transcript { margin-top: 30px; }
+  .msg { margin-top: 24px; break-inside: avoid; page-break-inside: avoid; }
+  .msg:first-child { margin-top: 0; }
+  .msg-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; color: #8b8377; font-size: 8.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+  .msg-label > span:last-child { color: #b6ad9e; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  .bubble { padding: 11px 14px; border: 1px solid #e7dfd2; border-radius: 9px; background: #f7f3eb; color: #211f1b; font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 13px; line-height: 1.66; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .content { white-space: pre-wrap; overflow-wrap: anywhere; color: #211f1b; font-family: Georgia, "Songti SC", "Noto Serif SC", serif; font-size: 15.5px; line-height: 1.68; }
+  .assistant.polish .content { padding-left: 14px; border-left: 2px solid #b08a3e; }
+  .audio-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+  .player { display: flex; align-items: center; gap: 7px; min-width: 144px; padding: 5px 8px 6px 5px; border: 1px solid #e5dccd; border-radius: 9px; background: #fbf8f2; }
+  .player.is-playing { border-color: #c4a56b; background: #fffaf0; }
+  .player.is-error { opacity: .58; }
+  .play { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; color: #fffdf8; background: #211f1b; font-size: 11px; line-height: 1; cursor: pointer; }
+  .play:disabled { cursor: default; }
+  .audio-copy { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .audio-copy strong { color: #211f1b; font-size: 9px; line-height: 1.2; letter-spacing: .04em; }
+  .audio-copy span { color: #7b7468; font-size: 8px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { display: block; width: 54px; height: 3px; overflow: hidden; border-radius: 99px; background: #ebe4d7; }
+  .bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: #b08a3e; transition: width .1s linear; }
+  .time { min-width: 26px; color: #8b8377; font-size: 8px; font-variant-numeric: tabular-nums; text-align: right; }
+  .audio-missing { margin: 9px 0 0; color: #a49b8d; font-size: 9px; }
+  .intro-note { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; color: #7b7468; font-size: 9px; }
+  .intro-note::before { content: "♪"; color: #b08a3e; font-size: 13px; }
+  .doc-foot { margin-top: 36px; padding-top: 12px; border-top: 1px solid #e7dfd2; color: #958d80; font-size: 9px; line-height: 1.6; }
+  @media (max-width: 620px) {
+    .sheet { width: 100%; margin: 0; padding: 28px 20px 30px; border: 0; border-radius: 0; box-shadow: none; }
+    .doc-head { gap: 14px; }
+    h1 { font-size: 27px; }
+    .doc-meta { font-size: 9px; }
+    .player { flex: 1 1 160px; }
+  }
+  @media print {
+    html, body { background: #fff; }
+    body { margin: 0; }
+    .sheet { width: auto; max-width: none; margin: 0; padding: 0; border: 0; box-shadow: none; background: #fff; }
+    .audio-row, .audio-missing, .intro-note { display: none !important; }
+    .msg { margin-top: 17px; }
+  }
+</style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="doc-head">
+      <div class="brand">
+        <div class="mark">Aa</div>
+        <div>
+          <div class="kicker">${escapeHtml(t('pdf.kicker'))}</div>
+          <h1>${escapeHtml(t('pdf.title'))}</h1>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <strong>${escapeHtml(modeName)}</strong>
+        <span>${escapeHtml(date)}</span>
+        <span>${escapeHtml(countLabel)}</span>
+      </div>
+    </header>
+    <p class="lede">${escapeHtml(t('pdf.lede'))}</p>
+    <div class="intro-note">${escapeHtml(t('zip.note'))}</div>
+    <section class="transcript">
+      ${rows}
+    </section>
+    <footer class="doc-foot">${escapeHtml(t('pdf.footer'))} · ${escapeHtml(modeName)}</footer>
+  </main>
+  <script>
+    (() => {
+      const players = Array.from(document.querySelectorAll('.player'));
+      let current = null;
+      const format = value => {
+        if (!Number.isFinite(value) || value <= 0) return '0:00';
+        const total = Math.floor(value);
+        return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+      };
+      for (const player of players) {
+        const audio = new Audio(player.dataset.src);
+        audio.preload = 'metadata';
+        const button = player.querySelector('.play');
+        const bar = player.querySelector('.bar > i');
+        const time = player.querySelector('.time');
+        const update = () => {
+          button.textContent = audio.paused ? '▶' : '❚❚';
+          player.classList.toggle('is-playing', !audio.paused);
+        };
+        button.addEventListener('click', async () => {
+          if (audio.paused) {
+            if (current && current !== audio) current.pause();
+            current = audio;
+            try {
+              await audio.play();
+            } catch {
+              player.classList.add('is-error');
+              button.disabled = true;
+              time.textContent = '--:--';
+            }
+          } else {
+            audio.pause();
+          }
+        });
+        audio.addEventListener('loadedmetadata', () => {
+          time.textContent = format(audio.duration);
+        });
+        audio.addEventListener('timeupdate', () => {
+          bar.style.width = (audio.duration ? (audio.currentTime / audio.duration) * 100 : 0) + '%';
+          time.textContent = format(audio.currentTime);
+        });
+        audio.addEventListener('play', update);
+        audio.addEventListener('pause', update);
+        audio.addEventListener('ended', () => {
+          update();
+          bar.style.width = '0%';
+          time.textContent = format(audio.duration);
+        });
+        audio.addEventListener('error', () => {
+          player.classList.add('is-error');
+          button.disabled = true;
+          time.textContent = '--:--';
+        });
+      }
+    })();
+  </script>
+</body>
+</html>`
+    }
+
+    async function downloadConversationZip({ mode, messages, t, locale, prefs, host, onProgress }) {
+      const printable = messages.filter(message => message.content.trim())
+      const assistants = printable.filter(message => message.role === 'assistant')
+      const total = assistants.length * 2
+      const audioByMessage = new Map()
+      const audioFiles = []
+      let completed = 0
+
+      for (let index = 0; index < assistants.length; index += 1) {
+        const message = assistants[index]
+        const jobs = ['edge', 'qwen'].map(async engine => {
+          const voice = engine === 'edge' ? prefs.edgeVoice : prefs.qwenSpeaker
+          const voiceName = voiceLabel(host, engine, voice)
+          try {
+            const asset = await fetchTtsAsset({
+              engine,
+              text: message.content,
+              voice,
+              rate: prefs.speed,
+            })
+            const file = `audio/${String(index + 1).padStart(3, '0')}-${engine}.${asset.ext}`
+            const entry = { engine, voiceName, file }
+            const list = audioByMessage.get(message.id) ?? []
+            list.push(entry)
+            audioByMessage.set(message.id, list)
+            audioFiles.push({ name: file, bytes: asset.bytes })
+          } catch {
+            // A missing engine must not block the rest of the export.
+          } finally {
+            completed += 1
+            onProgress?.({ phase: 'audio', done: completed, total })
+          }
+        })
+        await Promise.all(jobs)
+      }
+
+      onProgress?.({ phase: 'zip' })
+      const html = buildZipHtml({ mode, messages, t, locale, audioByMessage })
+      const modeName = t(`mode.${mode}.name`)
+      const readme = [
+        'Learn English · conversation export',
+        '',
+        `Mode: ${modeName}`,
+        `Exported: ${pdfDate(locale)}`,
+        `Messages: ${printable.length}`,
+        '',
+        'Open index.html in a browser to read and listen.',
+        'Keep the audio folder next to index.html.',
+        '',
+        t('zip.note'),
+      ].join('\n')
+      const root = exportBaseName(mode)
+      const files = [
+        { name: `${root}/index.html`, bytes: new TextEncoder().encode(html) },
+        { name: `${root}/README.txt`, bytes: new TextEncoder().encode(readme) },
+        ...audioFiles.map(file => ({ name: `${root}/${file.name}`, bytes: file.bytes })),
+      ]
+      const zip = zipBlob(files)
+      downloadBlob(zip, zipFilename(mode))
     }
 
     function resolveVoices(host, engine) {
@@ -1890,6 +2294,66 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function ExportMenu({ open, onClose, t, disabled, onPdf, onZip }) {
+      const ref = useRef(null)
+      useEffect(() => {
+        if (!open) return undefined
+        const onPointer = event => {
+          if (event.target?.closest?.('[data-export-trigger]')) return
+          if (ref.current && !ref.current.contains(event.target)) onClose()
+        }
+        const onKey = event => {
+          if (event.key === 'Escape') onClose()
+        }
+        document.addEventListener('pointerdown', onPointer)
+        document.addEventListener('keydown', onKey)
+        return () => {
+          document.removeEventListener('pointerdown', onPointer)
+          document.removeEventListener('keydown', onKey)
+        }
+      }, [open, onClose])
+
+      if (!open) return null
+      return h(
+        'div',
+        { className: 'le-export-menu', ref, role: 'menu', 'aria-label': t('controls.export') },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'le-export-item',
+            role: 'menuitem',
+            onClick: onPdf,
+            disabled,
+          },
+          h('span', { className: 'le-export-item-icon' }, h(Glyph, { name: 'download', size: 16 })),
+          h(
+            'span',
+            { className: 'le-export-item-copy' },
+            h('strong', null, t('controls.exportPdf')),
+            h('span', null, t('controls.exportPdfDesc')),
+          ),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'le-export-item',
+            role: 'menuitem',
+            onClick: onZip,
+            disabled,
+          },
+          h('span', { className: 'le-export-item-icon' }, h(Glyph, { name: 'archive', size: 16 })),
+          h(
+            'span',
+            { className: 'le-export-item-copy' },
+            h('strong', null, t('controls.exportZip')),
+            h('span', null, t('controls.exportZipDesc')),
+          ),
+        ),
+      )
+    }
+
     function SettingsPopover({ open, onClose, t, prefs, onPrefs, host }) {
       const ref = useRef(null)
       useEffect(() => {
@@ -2053,7 +2517,7 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function Composer({ mode, draft, onDraft, busy, onSend, onStop, t, textareaRef }) {
+    function Composer({ mode, draft, onDraft, busy, exporting, onSend, onStop, t, textareaRef }) {
       const composingRef = useRef(false)
       useEffect(() => {
         const el = textareaRef.current
@@ -2065,7 +2529,7 @@ window.__ModuleLoader__.load({
       const pick = event => {
         if (event.key === 'Enter' && !event.shiftKey && !composingRef.current && !event.nativeEvent?.isComposing) {
           event.preventDefault()
-          if (!busy) onSend()
+          if (!busy && !exporting) onSend()
         }
       }
 
@@ -2117,7 +2581,7 @@ window.__ModuleLoader__.load({
                     type: 'button',
                     className: 'le-send',
                     onClick: onSend,
-                    disabled: !draft.trim(),
+                    disabled: exporting || !draft.trim(),
                     title: t('composer.send'),
                     'aria-label': t('composer.send'),
                   },
@@ -2136,7 +2600,9 @@ window.__ModuleLoader__.load({
       const [freshId, setFreshId] = useState('')
       const [settingsOpen, setSettingsOpen] = useState(false)
       const [historyOpen, setHistoryOpen] = useState(false)
+      const [exportOpen, setExportOpen] = useState(false)
       const [exporting, setExporting] = useState(false)
+      const [exportStage, setExportStage] = useState('')
       const [host, setHost] = useState({ loading: true, data: null, error: '' })
       const busyRef = useRef(false)
       const exportingRef = useRef(false)
@@ -2254,7 +2720,7 @@ window.__ModuleLoader__.load({
       )
 
       function selectMode(nextMode) {
-        if (busyRef.current || nextMode === mode) return
+        if (busyRef.current || exportingRef.current || nextMode === mode) return
         setFreshId('')
         setStore(previous => ({ ...previous, mode: nextMode }))
       }
@@ -2506,9 +2972,10 @@ window.__ModuleLoader__.load({
       }
 
       function startNewChat() {
-        if (busyRef.current) return
+        if (busyRef.current || exportingRef.current) return
         setFreshId('')
         setHistoryOpen(false)
+        setExportOpen(false)
         setStore(previous => {
           const current = previous.threads[previous.mode] ?? []
           if (!current.length) return previous
@@ -2525,11 +2992,12 @@ window.__ModuleLoader__.load({
       }
 
       function loadArchived(archiveId) {
-        if (busyRef.current) return
+        if (busyRef.current || exportingRef.current) return
         const entry = archived.find(item => item.id === archiveId)
         if (!entry) return
         setFreshId('')
         setHistoryOpen(false)
+        setExportOpen(false)
         setStore(previous => {
           const target = previous.threads[entry.mode] ?? []
           let nextArchived = (previous.archived ?? []).filter(item => item.id !== entry.id)
@@ -2546,7 +3014,7 @@ window.__ModuleLoader__.load({
         stickRef.current = true
       }
 
-      async function exportPdf() {
+      async function startExport(kind) {
         if (
           busyRef.current ||
           exportingRef.current ||
@@ -2556,17 +3024,45 @@ window.__ModuleLoader__.load({
         }
         exportingRef.current = true
         setExporting(true)
+        setExportOpen(false)
         setSettingsOpen(false)
         setHistoryOpen(false)
+        setExportStage(t(kind === 'pdf' ? 'controls.exportPdfStage' : 'controls.exportPreparing'))
         try {
           await new Promise(resolve => setTimeout(resolve, 30))
-          await downloadConversationPdf({ mode, messages, t, locale })
+          if (kind === 'pdf') {
+            await downloadConversationPdf({ mode, messages, t, locale })
+          } else {
+            await downloadConversationZip({
+              mode,
+              messages,
+              t,
+              locale,
+              prefs: store.prefs,
+              host,
+              onProgress: progress => {
+                if (!aliveRef.current) return
+                if (progress.phase === 'audio') {
+                  setExportStage(
+                    `${t('controls.exportAudio')} ${progress.done}/${progress.total}`,
+                  )
+                } else if (progress.phase === 'zip') {
+                  setExportStage(t('controls.exportZipping'))
+                }
+              },
+            })
+          }
         } catch (error) {
-          console.error('[dsh-learn-english] PDF export failed:', error)
-          if (typeof window.alert === 'function') window.alert(t('errors.pdf'))
+          console.error(`[dsh-learn-english] ${kind.toUpperCase()} export failed:`, error)
+          if (typeof window.alert === 'function') {
+            window.alert(t(kind === 'pdf' ? 'errors.pdf' : 'errors.zip'))
+          }
         } finally {
           exportingRef.current = false
-          if (aliveRef.current) setExporting(false)
+          if (aliveRef.current) {
+            setExporting(false)
+            setExportStage('')
+          }
         }
       }
 
@@ -2614,7 +3110,7 @@ window.__ModuleLoader__.load({
                         key: item,
                         mode: item,
                         active: mode === item,
-                        disabled: busy,
+                        disabled: busy || exporting,
                         t,
                         onClick: () => selectMode(item),
                       }),
@@ -2650,6 +3146,7 @@ window.__ModuleLoader__.load({
                     onClick: () => {
                       setHistoryOpen(value => !value)
                       setSettingsOpen(false)
+                      setExportOpen(false)
                     },
                     title: t('controls.history'),
                     'aria-label': `${t('controls.history')}${archived.length ? ` · ${archived.length}` : ''}`,
@@ -2667,7 +3164,7 @@ window.__ModuleLoader__.load({
                   t,
                   locale,
                   archived,
-                  busy,
+                  busy: busy || exporting,
                   onLoad: loadArchived,
                 }),
               ),
@@ -2682,6 +3179,7 @@ window.__ModuleLoader__.load({
                     onClick: () => {
                       setSettingsOpen(value => !value)
                       setHistoryOpen(false)
+                      setExportOpen(false)
                     },
                     title: t('controls.settings'),
                     'aria-label': t('controls.settings'),
@@ -2700,20 +3198,50 @@ window.__ModuleLoader__.load({
                 }),
               ),
               h(
-                'button',
-                {
-                  type: 'button',
-                  className: 'le-export-button',
-                  onClick: exportPdf,
+                'div',
+                { className: 'le-export-wrap' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: `le-export-button${exportOpen ? ' is-active' : ''}`,
+                    onClick: () => {
+                      setExportOpen(value => !value)
+                      setSettingsOpen(false)
+                      setHistoryOpen(false)
+                    },
+                    disabled: busy || exporting || !messages.some(message => message.content.trim()),
+                    title: t('controls.export'),
+                    'aria-label': exporting ? t('controls.exporting') : t('controls.export'),
+                    'aria-busy': exporting,
+                    'aria-haspopup': 'menu',
+                    'aria-expanded': exportOpen,
+                    'data-export-trigger': true,
+                  },
+                  exporting
+                    ? h('span', { className: 'le-export-spin', 'aria-hidden': true })
+                    : h(Glyph, { name: 'download', size: 14 }),
+                  h(
+                    'span',
+                    { className: 'le-export-label' },
+                    exporting ? t('controls.exporting') : t('controls.export'),
+                  ),
+                  exporting
+                    ? null
+                    : h(
+                        'span',
+                        { className: 'le-export-caret', 'aria-hidden': true },
+                        h(Glyph, { name: 'chevron', size: 11 }),
+                      ),
+                ),
+                h(ExportMenu, {
+                  open: exportOpen,
+                  onClose: () => setExportOpen(false),
+                  t,
                   disabled: busy || exporting || !messages.some(message => message.content.trim()),
-                  title: t('controls.exportPdfHint'),
-                  'aria-label': exporting ? t('controls.exporting') : t('controls.exportPdf'),
-                  'aria-busy': exporting,
-                },
-                exporting
-                  ? h('span', { className: 'le-export-spin', 'aria-hidden': true })
-                  : h(Glyph, { name: 'download', size: 14 }),
-                h('span', null, exporting ? t('controls.exporting') : t('controls.exportPdf')),
+                  onPdf: () => startExport('pdf'),
+                  onZip: () => startExport('zip'),
+                }),
               ),
               h(
                 'button',
@@ -2721,7 +3249,7 @@ window.__ModuleLoader__.load({
                   type: 'button',
                   className: 'le-new-chat',
                   onClick: startNewChat,
-                  disabled: busy || messages.length === 0,
+                  disabled: busy || exporting || messages.length === 0,
                   title: t('controls.newChatHint'),
                 },
                 h(Glyph, { name: 'plus', size: 14 }),
@@ -2751,7 +3279,7 @@ window.__ModuleLoader__.load({
                       message,
                       mode,
                       isLatest: message.id === lastAssistantId,
-                      busy,
+                      busy: busy || exporting,
                       t,
                       prefs: store.prefs,
                       host,
@@ -2768,11 +3296,20 @@ window.__ModuleLoader__.load({
             draft,
             onDraft: setDraft,
             busy,
+            exporting,
             onSend: send,
             onStop: stop,
             t,
             textareaRef,
           }),
+          exporting
+            ? h(
+                'div',
+                { className: 'le-export-toast', role: 'status' },
+                h('span', { className: 'le-export-toast-spin', 'aria-hidden': true }),
+                h('span', null, exportStage || t('controls.exporting')),
+              )
+            : null,
         ),
         h('div', { className: 'le-sr', role: 'status', 'aria-live': 'polite' }, busy ? t('status.loading') : ''),
       )
@@ -2853,10 +3390,23 @@ window.__ModuleLoader__.load({
       .le-history-wrap { position:relative; display:inline-flex; }
       .le-history-btn { position:relative; }
       .le-history-badge { position:absolute; top:-3px; right:-3px; display:grid; place-items:center; min-width:14px; height:14px; padding:0 3px; border-radius:999px; color:var(--le-bg); background:var(--le-brand); font-size:7.5px; font-weight:750; line-height:1; box-shadow:0 0 0 2px var(--le-surface); }
+      .le-export-wrap { position:relative; display:inline-flex; }
       .le-export-button { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:0 11px; border:1px solid var(--le-line); border-radius:999px; background:transparent; color:var(--le-muted); font-size:10.5px; font-weight:650; white-space:nowrap; transition:border-color .18s ease, color .18s ease, background-color .18s ease; }
       .le-export-button:hover:not(:disabled) { color:var(--le-ink); border-color:var(--le-line-strong); background:var(--le-hover); }
+      .le-export-button.is-active { color:var(--le-ink); border-color:color-mix(in srgb, var(--le-brand) 28%, var(--le-line)); background:color-mix(in srgb, var(--le-brand) 6%, transparent); }
       .le-export-button:disabled { opacity:.45; }
+      .le-export-caret { display:inline-flex; margin-left:-2px; opacity:.55; }
       .le-export-spin { width:12px; height:12px; border:1.6px solid color-mix(in srgb, var(--le-muted) 30%, transparent); border-top-color:var(--le-brand); border-radius:50%; animation:le-rotate .8s linear infinite; }
+      .le-export-menu { position:absolute; top:calc(100% + 9px); right:0; z-index:40; width:282px; padding:6px; border:1px solid var(--le-line-strong); border-radius:14px; background:var(--le-overlay); box-shadow:0 24px 65px -24px color-mix(in srgb, var(--le-ink) 35%, transparent); animation:le-pop .18s cubic-bezier(.2,.7,.2,1) both; }
+      .le-export-item { display:flex; align-items:flex-start; gap:10px; width:100%; padding:9px 9px; border:0; border-radius:9px; background:transparent; color:var(--le-ink); text-align:left; transition:background-color .16s ease; }
+      .le-export-item:hover:not(:disabled) { background:var(--le-hover); }
+      .le-export-item:disabled { opacity:.55; }
+      .le-export-item-icon { display:grid; place-items:center; flex:none; width:29px; height:29px; border-radius:8px; color:var(--le-brand); background:color-mix(in srgb, var(--le-brand) 8%, transparent); }
+      .le-export-item-copy { display:flex; flex-direction:column; gap:2px; min-width:0; }
+      .le-export-item-copy strong { font-size:11px; font-weight:680; }
+      .le-export-item-copy span { color:var(--le-muted); font-size:9px; line-height:1.4; }
+      .le-export-toast { position:fixed; left:50%; bottom:24px; z-index:70; display:flex; align-items:center; gap:8px; max-width:calc(100vw - 32px); padding:9px 14px; transform:translateX(-50%); border:1px solid var(--le-line-strong); border-radius:999px; background:var(--le-overlay); color:var(--le-ink); font-size:10.5px; font-weight:600; box-shadow:0 18px 50px -20px color-mix(in srgb, var(--le-ink) 40%, transparent); animation:le-rise .2s ease both; }
+      .le-export-toast-spin { width:12px; height:12px; border:1.6px solid color-mix(in srgb, var(--le-muted) 30%, transparent); border-top-color:var(--le-brand); border-radius:50%; animation:le-rotate .8s linear infinite; }
       .le-new-chat { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:0 12px; border:1px solid var(--le-line); border-radius:999px; background:var(--le-surface); color:var(--le-ink); font-size:10.5px; font-weight:650; white-space:nowrap; box-shadow:0 1px 2px color-mix(in srgb, var(--le-ink) 5%, transparent); transition:border-color .18s ease, color .18s ease, background-color .18s ease, transform .18s ease; }
       .le-new-chat:hover:not(:disabled) { border-color:var(--le-line-strong); transform:translateY(-1px); }
       .le-new-chat:disabled { opacity:.55; }
@@ -3069,7 +3619,7 @@ window.__ModuleLoader__.load({
         .le-chip-label { display:none; }
         .le-status-text { display:none; }
         .le-status { width:30px; min-height:30px; justify-content:center; padding:0; }
-        .le-export-button span { display:none; }
+        .le-export-label, .le-export-caret { display:none; }
         .le-export-button { width:32px; padding:0; justify-content:center; }
       }
       @media (max-width:680px) {
@@ -3089,7 +3639,7 @@ window.__ModuleLoader__.load({
         .le-avatar { width:28px; height:28px; border-radius:9px; font-size:14px; }
         .le-hint { display:none; }
         .le-composer { padding-left:12px; }
-        .le-pop, .le-history-pop { position:fixed; top:70px; right:12px; left:12px; width:auto; max-height:70vh; }
+        .le-pop, .le-history-pop, .le-export-menu { position:fixed; top:70px; right:12px; left:12px; width:auto; max-height:70vh; }
       }
       @media (max-width:440px) {
         .le-mark { width:40px; height:40px; border-radius:13px; }

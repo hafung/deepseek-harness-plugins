@@ -1,6 +1,6 @@
 # Learn English
 
-A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by Edge TTS and the local Qwen3-TTS engine. Past conversations are archived locally, and the current thread can be downloaded as a clean A4 PDF.
+A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by Edge TTS and the local Qwen3-TTS engine. Past conversations are archived locally, and the current thread can be downloaded as a clean A4 PDF or a self-contained ZIP with a playable HTML page and both voice tracks.
 
 ## Modes
 
@@ -25,9 +25,19 @@ Conversations stay on the page and never create or jump to a main Session. The c
 
 Starting a new chat does not delete the old one. The current thread is filed into **Chat history** automatically; open the clock button in the header to browse saved conversations, then click one to restore it. Up to 20 conversations are retained (40 messages each), with a further character budget so the browser storage stays within quota. Restoring a conversation also files any existing live thread of that mode back into history first.
 
-## Export as PDF
+## Export
 
-The **Export PDF** button renders the current conversation to A4 pages in the browser and downloads a real `.pdf` file directly — no print dialog, no “Save as PDF” step. The layout uses a clean document design with a serif transcript, page-break protection for each exchange, mode/date metadata, and page numbers. The PDF is generated locally from the current conversation; no content leaves the machine.
+The header's **Export** menu offers two direct downloads.
+
+**Export PDF** renders the current conversation to A4 pages in the browser and downloads a real `.pdf` file directly — no print dialog, no “Save as PDF” step. The layout uses a clean document design with a serif transcript, page-break protection for each exchange, mode/date metadata, and page numbers.
+
+**Export ZIP** downloads a folder-ready archive containing:
+
+- `index.html` — a standalone, responsive conversation page with the same editorial layout.
+- `audio/` — the Edge and Qwen tracks for every assistant reply, named by message and engine.
+- `README.txt` — a short note on opening the page and keeping the audio folder beside it.
+
+Open `index.html` from the extracted folder to read the conversation and play either voice inline. The page has custom play/pause buttons, progress bars, durations, and only one clip plays at a time. The ZIP is created locally; no conversation or audio is uploaded.
 
 ## HTTP routes
 

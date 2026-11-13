@@ -342,8 +342,12 @@ async function run() {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.waitForTimeout(250)
 
+  await page.getByRole('button', { name: '导出', exact: true }).click()
+  await page.waitForSelector('.le-export-menu')
+  await page.waitForTimeout(250)
+  await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-export-menu.png') })
   const downloadPromise = page.waitForEvent('download', { timeout: 60000 })
-  await page.getByRole('button', { name: '导出 PDF' }).click()
+  await page.getByRole('menuitem', { name: /导出 PDF/ }).click()
   const download = await downloadPromise
   assert.match(
     download.suggestedFilename(),
@@ -357,6 +361,33 @@ async function run() {
   assert.ok(pdfBytes.length > 20_000, 'the exported PDF must contain rendered pages')
   assert.ok(pdfBytes.toString('latin1').includes('/Count 1'))
   fs.writeFileSync(path.resolve(__dirname, '../.scratch/learn-english-export.pdf'), pdfBytes)
+  await page.waitForFunction(
+    () => !document.querySelector('.le-export-button')?.disabled,
+    null,
+    { timeout: 30000 },
+  )
+
+  await page.getByRole('button', { name: '导出', exact: true }).click()
+  await page.waitForSelector('.le-export-menu')
+  const zipDownloadPromise = page.waitForEvent('download', { timeout: 60000 })
+  await page.getByRole('menuitem', { name: /导出 ZIP/ }).click()
+  const zipDownload = await zipDownloadPromise
+  assert.match(
+    zipDownload.suggestedFilename(),
+    /^learn-english-polish-\d{4}-\d{2}-\d{2}\.zip$/,
+    'ZIP export must download a dated ZIP file',
+  )
+  const zipPath = await zipDownload.path()
+  assert.ok(zipPath, 'the downloaded ZIP must have a readable path')
+  const zipBytes = fs.readFileSync(zipPath)
+  assert.equal(zipBytes.subarray(0, 4).toString('latin1'), 'PK\u0003\u0004')
+  assert.ok(zipBytes.length > 10_000, 'the exported ZIP must contain the HTML and audio')
+  fs.writeFileSync(path.resolve(__dirname, '../.scratch/learn-english-export.zip'), zipBytes)
+  await page.waitForFunction(
+    () => !document.querySelector('.le-export-button')?.disabled,
+    null,
+    { timeout: 30000 },
+  )
 
   await page.getByRole('button', { name: '新对话' }).click()
   await page.waitForSelector('.le-empty--polish')
