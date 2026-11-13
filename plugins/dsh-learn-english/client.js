@@ -18,6 +18,9 @@ window.__ModuleLoader__.load({
     const STORE_KEY = '@local/dsh-learn-english:store:v1'
     const MAX_MESSAGES = 60
     const MAX_INPUT = 6000
+    const ARCHIVE_LIMIT = 20
+    const ARCHIVE_MESSAGES = 40
+    const ARCHIVE_CHAR_BUDGET = 900_000
 
     const MODE_ORDER = ['free', 'polish']
     const MODE_STYLE = {
@@ -50,8 +53,23 @@ window.__ModuleLoader__.load({
         'controls.autoRead': 'Auto-read',
         'controls.settings': 'Voice & playback',
         'controls.newChat': 'New chat',
-        'controls.clearConfirm': 'Clear this chat?',
-        'controls.clearHint': 'Click again to clear this conversation.',
+        'controls.newChatHint': 'Files the current chat into history, then starts a blank one.',
+        'controls.history': 'Chat history',
+        'controls.exportPdf': 'Export PDF',
+        'controls.exporting': 'Generating PDF',
+        'controls.exportPdfHint': 'Download this conversation as a print-ready A4 PDF.',
+        'history.title': 'Chat history',
+        'history.close': 'Close history',
+        'history.empty': 'No saved chats yet. Starting a new chat files the current one here automatically.',
+        'history.note': 'Choose a conversation to continue.',
+        'history.turnUnit': 'turns',
+        'history.messageUnit': 'messages',
+        'history.open': 'Open conversation',
+        'pdf.kicker': 'LEARN ENGLISH · PRACTICE NOTES',
+        'pdf.title': 'English practice notes',
+        'pdf.lede': 'A private conversation record from your English studio.',
+        'pdf.footer': 'Learn English · DeepSeek Harness',
+        'errors.pdf': 'The PDF could not be generated. Please try again.',
         'mode.free.name': 'Free talk',
         'mode.free.tag': 'Conversation',
         'mode.free.desc': 'Chat with Alex like a friend. He always replies in English.',
@@ -144,8 +162,23 @@ window.__ModuleLoader__.load({
         'controls.autoRead': '自动朗读',
         'controls.settings': '语音与播放',
         'controls.newChat': '新对话',
-        'controls.clearConfirm': '清空当前对话？',
-        'controls.clearHint': '再点一次即可清空。',
+        'controls.newChatHint': '当前对话会先存入历史，再从空白页开始。',
+        'controls.history': '历史对话',
+        'controls.exportPdf': '导出 PDF',
+        'controls.exporting': '正在生成 PDF',
+        'controls.exportPdfHint': '直接下载当前对话的 A4 打印排版 PDF。',
+        'history.title': '历史对话',
+        'history.close': '关闭历史',
+        'history.empty': '还没有历史对话。点「新对话」后，当前聊天会自动保存在这里。',
+        'history.note': '选择一条记录继续练习。',
+        'history.turnUnit': '轮',
+        'history.messageUnit': '条',
+        'history.open': '打开对话',
+        'pdf.kicker': 'LEARN ENGLISH · 练习记录',
+        'pdf.title': '英语练习记录',
+        'pdf.lede': '来自你的英语练习室的一段私人对话记录。',
+        'pdf.footer': 'Learn English · DeepSeek Harness',
+        'errors.pdf': 'PDF 生成失败，请重试。',
         'mode.free.name': '自由对话',
         'mode.free.tag': 'Free talk',
         'mode.free.desc': '和 Alex 像朋友一样聊天，他只用英文回复。',
@@ -252,6 +285,7 @@ window.__ModuleLoader__.load({
       close: ['M6 6l12 12M18 6 6 18'],
       alert: ['M12 4 2.9 20h18.2L12 4Z', 'M12 9.4v4.4', 'M12 17.1v.3'],
       refresh: ['M20 11a8 8 0 1 0-2.3 6.7', 'M20 4.5V11h-6.4'],
+      clock: ['M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z', 'M12 7.7V12l3.1 1.9'],
       sparkles: [
         'M12 3.4l1.8 4.9 4.9 1.8-4.9 1.8L12 16.8l-1.8-4.9-4.9-1.8 4.9-1.8L12 3.4Z',
         'M18.6 15.3l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z',
@@ -367,6 +401,7 @@ window.__ModuleLoader__.load({
         version: 1,
         mode: 'free',
         threads: { free: [], polish: [] },
+        archived: [],
         prefs: {
           autoRead: true,
           edgeVoice: 'en-US-AvaNeural',
@@ -423,9 +458,37 @@ window.__ModuleLoader__.load({
           qwenVoiceCustom:
             raw.prefs?.qwenVoiceCustom === true || qwenSpeaker !== fallback.prefs.qwenSpeaker,
         }
-        return { version: 1, mode, threads, prefs }
+        const archived = (Array.isArray(raw.archived) ? raw.archived : [])
+          .map(entry => {
+            if (!entry || !MODE_ORDER.includes(entry.mode)) return null
+            const archivedMessages = (Array.isArray(entry.messages) ? entry.messages : [])
+              .map(message => sanitizeMessage(message, entry.mode))
+              .filter(Boolean)
+              .slice(-MAX_MESSAGES)
+            if (!archivedMessages.length) return null
+            return {
+              id: typeof entry.id === 'string' && entry.id ? entry.id : makeId(),
+              mode: entry.mode,
+              archivedAt: Number(entry.archivedAt) || Date.now(),
+              messages: archivedMessages,
+            }
+          })
+          .filter(Boolean)
+          .slice(0, ARCHIVE_LIMIT)
+        return { version: 1, mode, threads, archived, prefs }
       } catch {
         return fallback
+      }
+    }
+
+    function messageForDisk(message) {
+      return {
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        at: message.at,
+        status: message.status === 'error' || message.status === 'stopped' ? message.status : 'done',
+        error: message.error ?? '',
       }
     }
 
@@ -434,23 +497,477 @@ window.__ModuleLoader__.load({
       for (const key of MODE_ORDER) {
         threads[key] = (store.threads[key] ?? [])
           .filter(message => message.status !== 'streaming')
-          .map(message => ({
-            id: message.id,
-            role: message.role,
-            content: message.content,
-            at: message.at,
-            status: message.status === 'error' || message.status === 'stopped' ? message.status : 'done',
-            error: message.error ?? '',
-          }))
+          .map(messageForDisk)
           .slice(-MAX_MESSAGES)
       }
-      return { version: 1, mode: store.mode, threads, prefs: store.prefs }
+      const archived = []
+      let archiveChars = 0
+      for (const entry of store.archived ?? []) {
+        if (archived.length >= ARCHIVE_LIMIT) break
+        const messages = (entry.messages ?? [])
+          .filter(message => message.status !== 'streaming')
+          .map(messageForDisk)
+          .slice(-ARCHIVE_MESSAGES)
+        if (!messages.length) continue
+        const chars = messages.reduce((total, message) => total + message.content.length, 0)
+        if (archived.length && archiveChars + chars > ARCHIVE_CHAR_BUDGET) break
+        archived.push({ id: entry.id, mode: entry.mode, archivedAt: entry.archivedAt, messages })
+        archiveChars += chars
+      }
+      return { version: 1, mode: store.mode, threads, archived, prefs: store.prefs }
     }
 
     function friendlyClientError(error, t) {
       const raw = String(error?.message ?? error ?? '').replace(/\s+/g, ' ').trim()
       if (!raw || /failed to fetch|networkerror|load failed/i.test(raw)) return t('errors.offline')
       return raw
+    }
+
+    function formatArchiveTime(at, locale) {
+      const date = new Date(Number(at) || Date.now())
+      try {
+        return new Intl.DateTimeFormat(locale || 'en', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(date)
+      } catch {
+        return date.toLocaleString()
+      }
+    }
+
+    function archivePreview(entry) {
+      const messages = entry?.messages ?? []
+      const source =
+        [...messages].reverse().find(message => message.role === 'user' && message.content.trim()) ??
+        [...messages].reverse().find(message => message.content.trim())
+      const text = String(source?.content ?? '').replace(/\s+/g, ' ').trim()
+      return text.length > 62 ? `${Array.from(text).slice(0, 62).join('')}…` : text
+    }
+
+    const PDF_PAGE_WIDTH = 595.28
+    const PDF_PAGE_HEIGHT = 841.89
+    const PDF_CANVAS_SCALE = 2.5
+    const PDF_CANVAS_WIDTH = Math.round(PDF_PAGE_WIDTH * PDF_CANVAS_SCALE)
+    const PDF_CANVAS_HEIGHT = Math.round(PDF_PAGE_HEIGHT * PDF_CANVAS_SCALE)
+    const PDF_MARGIN = 120
+    const PDF_CONTENT_WIDTH = PDF_CANVAS_WIDTH - PDF_MARGIN * 2
+    const PDF_PAGE_BOTTOM = 1972
+    const PDF_FIRST_TOP = 380
+    const PDF_RUNNING_TOP = 150
+    const PDF_SERIF =
+      'Georgia, "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", serif'
+    const PDF_SANS = '"Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif'
+    const PDF_INK = '#211f1b'
+    const PDF_MUTED = '#7b7468'
+    const PDF_LINE = '#e5dccd'
+    const PDF_SOFT = '#f7f3eb'
+    const PDF_SOFT_LINE = '#e7dfd2'
+    const PDF_ACCENT = '#b08a3e'
+    const PDF_MARK_TEXT = '#fffdf8'
+
+    function pdfDate(locale, timestamp = Date.now()) {
+      const at = Number(timestamp) || Date.now()
+      try {
+        return new Intl.DateTimeFormat(locale || 'en', {
+          dateStyle: 'long',
+          timeStyle: 'short',
+        }).format(new Date(at))
+      } catch {
+        return new Date(at).toLocaleString()
+      }
+    }
+
+    function pdfFilename(mode) {
+      const now = new Date()
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+        now.getDate(),
+      ).padStart(2, '0')}`
+      return `learn-english-${mode}-${stamp}.pdf`
+    }
+
+    function fillPdfRoundRect(ctx, x, y, width, height, radius, fill, stroke) {
+      const r = Math.min(radius, width / 2, height / 2)
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + width - r, y)
+      ctx.quadraticCurveTo(x + width, y, x + width, y + r)
+      ctx.lineTo(x + width, y + height - r)
+      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
+      ctx.lineTo(x + r, y + height)
+      ctx.quadraticCurveTo(x, y + height, x, y + height - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+      if (fill) {
+        ctx.fillStyle = fill
+        ctx.fill()
+      }
+      if (stroke) {
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+    }
+
+    function wrapPdfText(ctx, value, maxWidth) {
+      const lines = []
+      const paragraphs = String(value ?? '').replace(/\r\n/g, '\n').split('\n')
+      for (const paragraph of paragraphs) {
+        if (!paragraph.trim()) {
+          lines.push('')
+          continue
+        }
+        const tokens = paragraph.match(/\S+\s*/g) ?? []
+        let line = ''
+        for (const token of tokens) {
+          if (ctx.measureText(line + token).width <= maxWidth) {
+            line += token
+            continue
+          }
+          if (line.trim()) {
+            lines.push(line.trimEnd())
+            line = ''
+          }
+          const clean = token.trimStart()
+          if (ctx.measureText(clean).width <= maxWidth) {
+            line = clean
+            continue
+          }
+          for (const character of Array.from(clean)) {
+            if (line && ctx.measureText(line + character).width > maxWidth) {
+              lines.push(line.trimEnd())
+              line = ''
+            }
+            line += character
+          }
+        }
+        if (line.trim()) lines.push(line.trimEnd())
+      }
+      return lines.length ? lines : ['']
+    }
+
+    function drawPdfHeader(ctx, { modeName, date, countLabel, t }) {
+      fillPdfRoundRect(ctx, PDF_MARGIN, 106, 74, 74, 17, PDF_INK)
+      ctx.fillStyle = PDF_MARK_TEXT
+      ctx.font = `600 35px ${PDF_SERIF}`
+      ctx.textAlign = 'center'
+      ctx.fillText('Aa', PDF_MARGIN + 37, 156)
+      ctx.textAlign = 'left'
+
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `700 16px ${PDF_SANS}`
+      ctx.fillText(t('pdf.kicker'), PDF_MARGIN + 92, 132)
+
+      ctx.fillStyle = PDF_INK
+      ctx.font = `600 58px ${PDF_SERIF}`
+      ctx.fillText(t('pdf.title'), PDF_MARGIN + 90, 199)
+
+      ctx.textAlign = 'right'
+      ctx.fillStyle = PDF_INK
+      ctx.font = `700 18px ${PDF_SANS}`
+      ctx.fillText(modeName, PDF_CANVAS_WIDTH - PDF_MARGIN, 130)
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `400 17px ${PDF_SANS}`
+      ctx.fillText(date, PDF_CANVAS_WIDTH - PDF_MARGIN, 159)
+      ctx.fillText(countLabel, PDF_CANVAS_WIDTH - PDF_MARGIN, 185)
+      ctx.textAlign = 'left'
+
+      ctx.strokeStyle = PDF_LINE
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(PDF_MARGIN, 294)
+      ctx.lineTo(PDF_CANVAS_WIDTH - PDF_MARGIN, 294)
+      ctx.stroke()
+
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `400 20px ${PDF_SANS}`
+      ctx.fillText(t('pdf.lede'), PDF_MARGIN, 338)
+    }
+
+    function drawPdfRunningHeader(ctx, { modeName, date, t }) {
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `700 15px ${PDF_SANS}`
+      ctx.fillText(t('pdf.kicker'), PDF_MARGIN, 78)
+      ctx.textAlign = 'right'
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `400 15px ${PDF_SANS}`
+      ctx.fillText(`${modeName} · ${date}`, PDF_CANVAS_WIDTH - PDF_MARGIN, 78)
+      ctx.textAlign = 'left'
+      ctx.strokeStyle = PDF_LINE
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(PDF_MARGIN, 98)
+      ctx.lineTo(PDF_CANVAS_WIDTH - PDF_MARGIN, 98)
+      ctx.stroke()
+    }
+
+    function drawPdfFooter(ctx, page, total, t) {
+      ctx.strokeStyle = PDF_LINE
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(PDF_MARGIN, 2018)
+      ctx.lineTo(PDF_CANVAS_WIDTH - PDF_MARGIN, 2018)
+      ctx.stroke()
+      ctx.fillStyle = PDF_MUTED
+      ctx.font = `400 16px ${PDF_SANS}`
+      ctx.fillText(t('pdf.footer'), PDF_MARGIN, 2052)
+      ctx.textAlign = 'right'
+      ctx.fillText(`${page} / ${total}`, PDF_CANVAS_WIDTH - PDF_MARGIN, 2052)
+      ctx.textAlign = 'left'
+    }
+
+    function pdfPage() {
+      const canvas = document.createElement('canvas')
+      canvas.width = PDF_CANVAS_WIDTH
+      canvas.height = PDF_CANVAS_HEIGHT
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, PDF_CANVAS_WIDTH, PDF_CANVAS_HEIGHT)
+      ctx.textBaseline = 'alphabetic'
+      ctx.textAlign = 'left'
+      return { canvas, ctx, y: PDF_RUNNING_TOP }
+    }
+
+    async function buildConversationPdf({ mode, messages, t, locale }) {
+      try {
+        await document.fonts?.ready
+      } catch {
+        // System fonts remain usable when the FontFaceSet is unavailable.
+      }
+      const printable = messages.filter(message => message.content.trim())
+      const modeName = t(`mode.${mode}.name`)
+      const conversationAt = Number(printable[0]?.at) || Date.now()
+      const date = pdfDate(locale, conversationAt)
+      const userTurns = printable.filter(message => message.role === 'user').length
+      const countLabel = `${userTurns} ${t('history.turnUnit')} · ${printable.length} ${t('history.messageUnit')}`
+      const pages = []
+      let current = null
+
+      const newPage = first => {
+        current = pdfPage()
+        pages.push(current)
+        if (first) {
+          drawPdfHeader(current.ctx, { modeName, date, countLabel, t })
+          current.y = PDF_FIRST_TOP
+        } else {
+          drawPdfRunningHeader(current.ctx, { modeName, date, t })
+          current.y = PDF_RUNNING_TOP
+        }
+      }
+
+      const drawLabel = (label, index) => {
+        if (current.y + 34 > PDF_PAGE_BOTTOM) newPage(false)
+        const ctx = current.ctx
+        ctx.fillStyle = PDF_MUTED
+        ctx.font = `700 17px ${PDF_SANS}`
+        ctx.fillText(String(label).toUpperCase(), PDF_MARGIN, current.y + 20)
+        ctx.textAlign = 'right'
+        ctx.fillText(
+          String(index + 1).padStart(2, '0'),
+          PDF_CANVAS_WIDTH - PDF_MARGIN,
+          current.y + 20,
+        )
+        ctx.textAlign = 'left'
+        current.y += 34
+      }
+
+      newPage(true)
+      printable.forEach((message, index) => {
+        const isUser = message.role === 'user'
+        const isPolishAssistant = !isUser && mode === 'polish'
+        const ctx = current.ctx
+        if (isUser) {
+          ctx.font = `400 27px ${PDF_SANS}`
+          const lines = wrapPdfText(ctx, message.content, PDF_CONTENT_WIDTH - 48)
+          const lineHeight = 42
+          const padding = 22
+          const boxHeight = lines.length * lineHeight + padding * 2
+          if (
+            current.y + 34 + boxHeight > PDF_PAGE_BOTTOM &&
+            34 + boxHeight <= PDF_PAGE_BOTTOM - PDF_RUNNING_TOP
+          ) {
+            newPage(false)
+          }
+          drawLabel(t('message.you'), index)
+          let remaining = lines.slice()
+          while (remaining.length) {
+            const available = PDF_PAGE_BOTTOM - current.y
+            if (available < padding * 2 + lineHeight) {
+              newPage(false)
+              continue
+            }
+            const maxLines = Math.max(1, Math.floor((available - padding * 2) / lineHeight))
+            const chunk = remaining.splice(0, maxLines)
+            const height = chunk.length * lineHeight + padding * 2
+            fillPdfRoundRect(
+              current.ctx,
+              PDF_MARGIN,
+              current.y,
+              PDF_CONTENT_WIDTH,
+              height,
+              10,
+              PDF_SOFT,
+              PDF_SOFT_LINE,
+            )
+            current.ctx.fillStyle = PDF_INK
+            current.ctx.font = `400 27px ${PDF_SANS}`
+            chunk.forEach((line, lineIndex) => {
+              current.ctx.fillText(
+                line,
+                PDF_MARGIN + 24,
+                current.y + padding + 22 + lineIndex * lineHeight,
+              )
+            })
+            current.y += height + 24
+            if (remaining.length) newPage(false)
+          }
+          current.y += 12
+          return
+        }
+
+        ctx.font = `400 30px ${PDF_SERIF}`
+        const indent = isPolishAssistant ? 26 : 0
+        const lines = wrapPdfText(ctx, message.content, PDF_CONTENT_WIDTH - indent)
+        const lineHeight = 48
+        if (current.y + 34 + lineHeight * 2 > PDF_PAGE_BOTTOM) newPage(false)
+        drawLabel(isPolishAssistant ? t('message.editor') : t('message.alex'), index)
+        let remaining = lines.slice()
+        while (remaining.length) {
+          const available = PDF_PAGE_BOTTOM - current.y
+          const maxLines = Math.max(0, Math.floor(available / lineHeight))
+          if (maxLines === 0) {
+            newPage(false)
+            continue
+          }
+          const chunk = remaining.splice(0, maxLines)
+          if (indent) {
+            current.ctx.fillStyle = PDF_ACCENT
+            current.ctx.fillRect(
+              PDF_MARGIN,
+              current.y + 4,
+              3,
+              Math.max(8, chunk.length * lineHeight - 10),
+            )
+          }
+          current.ctx.fillStyle = PDF_INK
+          current.ctx.font = `400 30px ${PDF_SERIF}`
+          chunk.forEach((line, lineIndex) => {
+            current.ctx.fillText(
+              line,
+              PDF_MARGIN + indent,
+              current.y + 31 + lineIndex * lineHeight,
+            )
+          })
+          current.y += chunk.length * lineHeight + 8
+          if (remaining.length) newPage(false)
+        }
+        current.y += 22
+      })
+
+      pages.forEach((page, index) => drawPdfFooter(page.ctx, index + 1, pages.length, t))
+      const jpegs = pages.map(page => dataUrlBytes(page.canvas.toDataURL('image/jpeg', 0.94)))
+      return jpegPdfBlob(jpegs)
+    }
+
+    function dataUrlBytes(dataUrl) {
+      const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1)
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+      return bytes
+    }
+
+    function jpegPdfBlob(jpegs) {
+      const encoder = new TextEncoder()
+      const chunks = []
+      let offset = 0
+      const offsets = [0]
+      const add = value => {
+        const bytes = typeof value === 'string' ? encoder.encode(value) : value
+        chunks.push(bytes)
+        offset += bytes.length
+      }
+      const writeObject = (id, body) => {
+        offsets[id] = offset
+        add(`${id} 0 obj\n`)
+        body()
+        add('\nendobj\n')
+      }
+
+      const pageCount = jpegs.length
+      const totalObjects = 2 + pageCount * 3 + 1
+      const pageIds = Array.from({ length: pageCount }, (_, index) => 3 + index * 3)
+      add('%PDF-1.4\n')
+      add(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]))
+
+      writeObject(1, () => add('<< /Type /Catalog /Pages 2 0 R >>'))
+      writeObject(2, () =>
+        add(
+          `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageCount} >>`,
+        ),
+      )
+
+      jpegs.forEach((jpeg, index) => {
+        const pageId = 3 + index * 3
+        const imageId = pageId + 1
+        const contentId = pageId + 2
+        writeObject(pageId, () =>
+          add(
+            `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PDF_PAGE_WIDTH} ${PDF_PAGE_HEIGHT}] /Resources << /XObject << /Im0 ${imageId} 0 R >> >> /Contents ${contentId} 0 R >>`,
+          ),
+        )
+        writeObject(imageId, () => {
+          add(
+            `<< /Type /XObject /Subtype /Image /Width ${PDF_CANVAS_WIDTH} /Height ${PDF_CANVAS_HEIGHT} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`,
+          )
+          add(jpeg)
+          add('\nendstream')
+        })
+        const stream = encoder.encode(
+          `q ${PDF_PAGE_WIDTH} 0 0 ${PDF_PAGE_HEIGHT} 0 0 cm /Im0 Do Q\n`,
+        )
+        writeObject(contentId, () => {
+          add(`<< /Length ${stream.length} >>\nstream\n`)
+          add(stream)
+          add('endstream')
+        })
+      })
+
+      const infoId = 3 + pageCount * 3
+      writeObject(infoId, () =>
+        add(
+          '<< /Title (Learn English practice notes) /Creator (Learn English) /Producer (Learn English DSH plugin) >>',
+        ),
+      )
+
+      const xrefOffset = offset
+      add(`xref\n0 ${totalObjects + 1}\n0000000000 65535 f \n`)
+      for (let id = 1; id <= totalObjects; id += 1) {
+        add(`${String(offsets[id]).padStart(10, '0')} 00000 n \n`)
+      }
+      add(
+        `trailer\n<< /Size ${totalObjects + 1} /Root 1 0 R /Info ${infoId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`,
+      )
+      return new Blob(chunks, { type: 'application/pdf' })
+    }
+
+    function downloadPdfBlob(blob, filename) {
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    }
+
+    async function downloadConversationPdf({ mode, messages, t, locale }) {
+      const blob = await buildConversationPdf({ mode, messages, t, locale })
+      downloadPdfBlob(blob, pdfFilename(mode))
     }
 
     function resolveVoices(host, engine) {
@@ -1275,6 +1792,104 @@ window.__ModuleLoader__.load({
       )
     }
 
+    function HistoryPopover({ open, onClose, t, locale, archived, busy, onLoad }) {
+      const ref = useRef(null)
+      useEffect(() => {
+        if (!open) return undefined
+        const onPointer = event => {
+          if (event.target?.closest?.('[data-history-trigger]')) return
+          if (ref.current && !ref.current.contains(event.target)) onClose()
+        }
+        const onKey = event => {
+          if (event.key === 'Escape') onClose()
+        }
+        document.addEventListener('pointerdown', onPointer)
+        document.addEventListener('keydown', onKey)
+        return () => {
+          document.removeEventListener('pointerdown', onPointer)
+          document.removeEventListener('keydown', onKey)
+        }
+      }, [open, onClose])
+
+      if (!open) return null
+      return h(
+        'div',
+        { className: 'le-history-pop', ref, role: 'dialog', 'aria-label': t('history.title') },
+        h(
+          'div',
+          { className: 'le-pop-head' },
+          h(
+            'div',
+            { className: 'le-history-heading' },
+            h('strong', null, t('history.title')),
+            h('span', { className: 'le-history-total' }, archived.length),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'le-icon-btn le-pop-close',
+              onClick: onClose,
+              title: t('history.close'),
+              'aria-label': t('history.close'),
+            },
+            h(Glyph, { name: 'close', size: 14 }),
+          ),
+        ),
+        archived.length === 0
+          ? h(
+              'div',
+              { className: 'le-history-empty' },
+              h(Glyph, { name: 'clock', size: 18 }),
+              h('p', null, t('history.empty')),
+            )
+          : h(
+              'div',
+              { className: 'le-history-list' },
+              archived.map(entry => {
+                const turns = entry.messages.filter(message => message.role === 'user').length
+                return h(
+                  'button',
+                  {
+                    key: entry.id,
+                    type: 'button',
+                    className: 'le-history-item',
+                    onClick: () => onLoad(entry.id),
+                    disabled: busy,
+                    title: t('history.open'),
+                  },
+                  h(
+                    'span',
+                    { className: 'le-history-item-top' },
+                    h(
+                      'span',
+                      { className: `le-history-mode is-${entry.mode}` },
+                      h(Glyph, { name: MODE_STYLE[entry.mode].icon, size: 11 }),
+                      t(`mode.${entry.mode}.name`),
+                    ),
+                    h(
+                      'time',
+                      null,
+                      formatArchiveTime(
+                        entry.messages[entry.messages.length - 1]?.at ?? entry.archivedAt,
+                        locale,
+                      ),
+                    ),
+                  ),
+                  h('span', { className: 'le-history-preview' }, archivePreview(entry)),
+                  h(
+                    'span',
+                    { className: 'le-history-meta' },
+                    `${turns} ${t('history.turnUnit')} · ${entry.messages.length} ${t('history.messageUnit')}`,
+                    h(Glyph, { name: 'arrow', size: 12 }),
+                  ),
+                )
+              }),
+            ),
+        archived.length ? h('p', { className: 'le-history-note' }, t('history.note')) : null,
+      )
+    }
+
     function SettingsPopover({ open, onClose, t, prefs, onPrefs, host }) {
       const ref = useRef(null)
       useEffect(() => {
@@ -1514,24 +2129,26 @@ window.__ModuleLoader__.load({
     }
 
     function LearnEnglishPage({ localeService }) {
-      const { t } = useLocale(localeService)
+      const { t, locale } = useLocale(localeService)
       const [store, setStore] = useState(readStore)
       const [draft, setDraft] = useState('')
       const [busy, setBusy] = useState(false)
       const [freshId, setFreshId] = useState('')
-      const [confirmClear, setConfirmClear] = useState(false)
       const [settingsOpen, setSettingsOpen] = useState(false)
+      const [historyOpen, setHistoryOpen] = useState(false)
+      const [exporting, setExporting] = useState(false)
       const [host, setHost] = useState({ loading: true, data: null, error: '' })
       const busyRef = useRef(false)
+      const exportingRef = useRef(false)
       const activeRequestRef = useRef(null)
       const threadRef = useRef(null)
       const textareaRef = useRef(null)
       const stickRef = useRef(true)
-      const clearTimerRef = useRef(null)
       const aliveRef = useRef(true)
 
       const mode = store.mode
       const messages = store.threads[mode] ?? []
+      const archived = store.archived ?? []
       const streaming = messages.some(message => message.status === 'streaming')
       const lastAssistantId = [...messages].reverse().find(message => message.role === 'assistant')?.id
 
@@ -1539,7 +2156,6 @@ window.__ModuleLoader__.load({
         aliveRef.current = true
         return () => {
           aliveRef.current = false
-          if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
           activeRequestRef.current?.abort()
         }
       }, [])
@@ -1639,11 +2255,6 @@ window.__ModuleLoader__.load({
 
       function selectMode(nextMode) {
         if (busyRef.current || nextMode === mode) return
-        setConfirmClear(false)
-        if (clearTimerRef.current) {
-          clearTimeout(clearTimerRef.current)
-          clearTimerRef.current = null
-        }
         setFreshId('')
         setStore(previous => ({ ...previous, mode: nextMode }))
       }
@@ -1885,27 +2496,78 @@ window.__ModuleLoader__.load({
         activeRequestRef.current?.abort()
       }
 
-      function toggleClear() {
+      function makeArchive(archiveMode, archiveMessages) {
+        return {
+          id: makeId(),
+          mode: archiveMode,
+          archivedAt: Date.now(),
+          messages: archiveMessages.slice(-ARCHIVE_MESSAGES),
+        }
+      }
+
+      function startNewChat() {
         if (busyRef.current) return
-        if (!confirmClear) {
-          setConfirmClear(true)
-          if (clearTimerRef.current) clearTimeout(clearTimerRef.current)
-          clearTimerRef.current = setTimeout(() => {
-            setConfirmClear(false)
-            clearTimerRef.current = null
-          }, 3200)
+        setFreshId('')
+        setHistoryOpen(false)
+        setStore(previous => {
+          const current = previous.threads[previous.mode] ?? []
+          if (!current.length) return previous
+          return {
+            ...previous,
+            archived: [makeArchive(previous.mode, current), ...(previous.archived ?? [])].slice(
+              0,
+              ARCHIVE_LIMIT,
+            ),
+            threads: { ...previous.threads, [previous.mode]: [] },
+          }
+        })
+        stickRef.current = true
+      }
+
+      function loadArchived(archiveId) {
+        if (busyRef.current) return
+        const entry = archived.find(item => item.id === archiveId)
+        if (!entry) return
+        setFreshId('')
+        setHistoryOpen(false)
+        setStore(previous => {
+          const target = previous.threads[entry.mode] ?? []
+          let nextArchived = (previous.archived ?? []).filter(item => item.id !== entry.id)
+          if (target.length) {
+            nextArchived = [makeArchive(entry.mode, target), ...nextArchived]
+          }
+          return {
+            ...previous,
+            mode: entry.mode,
+            threads: { ...previous.threads, [entry.mode]: entry.messages },
+            archived: nextArchived.slice(0, ARCHIVE_LIMIT),
+          }
+        })
+        stickRef.current = true
+      }
+
+      async function exportPdf() {
+        if (
+          busyRef.current ||
+          exportingRef.current ||
+          !messages.some(message => message.content.trim())
+        ) {
           return
         }
-        if (clearTimerRef.current) {
-          clearTimeout(clearTimerRef.current)
-          clearTimerRef.current = null
+        exportingRef.current = true
+        setExporting(true)
+        setSettingsOpen(false)
+        setHistoryOpen(false)
+        try {
+          await new Promise(resolve => setTimeout(resolve, 30))
+          await downloadConversationPdf({ mode, messages, t, locale })
+        } catch (error) {
+          console.error('[dsh-learn-english] PDF export failed:', error)
+          if (typeof window.alert === 'function') window.alert(t('errors.pdf'))
+        } finally {
+          exportingRef.current = false
+          if (aliveRef.current) setExporting(false)
         }
-        setConfirmClear(false)
-        setFreshId('')
-        setStore(previous => ({
-          ...previous,
-          threads: { ...previous.threads, [previous.mode]: [] },
-        }))
       }
 
       function pickPrompt(text) {
@@ -1979,13 +2641,48 @@ window.__ModuleLoader__.load({
               ),
               h(
                 'div',
+                { className: 'le-history-wrap' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: `le-icon-btn le-history-btn${historyOpen ? ' is-active' : ''}`,
+                    onClick: () => {
+                      setHistoryOpen(value => !value)
+                      setSettingsOpen(false)
+                    },
+                    title: t('controls.history'),
+                    'aria-label': `${t('controls.history')}${archived.length ? ` · ${archived.length}` : ''}`,
+                    'aria-expanded': historyOpen,
+                    'data-history-trigger': true,
+                  },
+                  h(Glyph, { name: 'clock', size: 16 }),
+                  archived.length
+                    ? h('span', { className: 'le-history-badge' }, archived.length > 9 ? '9+' : archived.length)
+                    : null,
+                ),
+                h(HistoryPopover, {
+                  open: historyOpen,
+                  onClose: () => setHistoryOpen(false),
+                  t,
+                  locale,
+                  archived,
+                  busy,
+                  onLoad: loadArchived,
+                }),
+              ),
+              h(
+                'div',
                 { className: 'le-settings-wrap' },
                 h(
                   'button',
                   {
                     type: 'button',
                     className: `le-icon-btn${settingsOpen ? ' is-active' : ''}`,
-                    onClick: () => setSettingsOpen(value => !value),
+                    onClick: () => {
+                      setSettingsOpen(value => !value)
+                      setHistoryOpen(false)
+                    },
                     title: t('controls.settings'),
                     'aria-label': t('controls.settings'),
                     'aria-expanded': settingsOpen,
@@ -2006,13 +2703,29 @@ window.__ModuleLoader__.load({
                 'button',
                 {
                   type: 'button',
-                  className: `le-new-chat${confirmClear ? ' is-confirm' : ''}`,
-                  onClick: toggleClear,
-                  disabled: busy,
-                  title: confirmClear ? t('controls.clearHint') : t('controls.newChat'),
+                  className: 'le-export-button',
+                  onClick: exportPdf,
+                  disabled: busy || exporting || !messages.some(message => message.content.trim()),
+                  title: t('controls.exportPdfHint'),
+                  'aria-label': exporting ? t('controls.exporting') : t('controls.exportPdf'),
+                  'aria-busy': exporting,
                 },
-                h(Glyph, { name: confirmClear ? 'alert' : 'plus', size: 14 }),
-                h('span', null, confirmClear ? t('controls.clearConfirm') : t('controls.newChat')),
+                exporting
+                  ? h('span', { className: 'le-export-spin', 'aria-hidden': true })
+                  : h(Glyph, { name: 'download', size: 14 }),
+                h('span', null, exporting ? t('controls.exporting') : t('controls.exportPdf')),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'le-new-chat',
+                  onClick: startNewChat,
+                  disabled: busy || messages.length === 0,
+                  title: t('controls.newChatHint'),
+                },
+                h(Glyph, { name: 'plus', size: 14 }),
+                h('span', null, t('controls.newChat')),
               ),
             ),
           ),
@@ -2137,10 +2850,16 @@ window.__ModuleLoader__.load({
       .le-icon-btn:hover { color:var(--le-ink); border-color:var(--le-line-strong); background:var(--le-hover); }
       .le-icon-btn.is-active { color:var(--le-ink); border-color:color-mix(in srgb, var(--le-brand) 32%, var(--le-line)); background:color-mix(in srgb, var(--le-brand) 7%, transparent); }
       .le-settings-wrap { position:relative; }
+      .le-history-wrap { position:relative; display:inline-flex; }
+      .le-history-btn { position:relative; }
+      .le-history-badge { position:absolute; top:-3px; right:-3px; display:grid; place-items:center; min-width:14px; height:14px; padding:0 3px; border-radius:999px; color:var(--le-bg); background:var(--le-brand); font-size:7.5px; font-weight:750; line-height:1; box-shadow:0 0 0 2px var(--le-surface); }
+      .le-export-button { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:0 11px; border:1px solid var(--le-line); border-radius:999px; background:transparent; color:var(--le-muted); font-size:10.5px; font-weight:650; white-space:nowrap; transition:border-color .18s ease, color .18s ease, background-color .18s ease; }
+      .le-export-button:hover:not(:disabled) { color:var(--le-ink); border-color:var(--le-line-strong); background:var(--le-hover); }
+      .le-export-button:disabled { opacity:.45; }
+      .le-export-spin { width:12px; height:12px; border:1.6px solid color-mix(in srgb, var(--le-muted) 30%, transparent); border-top-color:var(--le-brand); border-radius:50%; animation:le-rotate .8s linear infinite; }
       .le-new-chat { display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:0 12px; border:1px solid var(--le-line); border-radius:999px; background:var(--le-surface); color:var(--le-ink); font-size:10.5px; font-weight:650; white-space:nowrap; box-shadow:0 1px 2px color-mix(in srgb, var(--le-ink) 5%, transparent); transition:border-color .18s ease, color .18s ease, background-color .18s ease, transform .18s ease; }
       .le-new-chat:hover:not(:disabled) { border-color:var(--le-line-strong); transform:translateY(-1px); }
       .le-new-chat:disabled { opacity:.55; }
-      .le-new-chat.is-confirm { color:var(--le-error); border-color:color-mix(in srgb, var(--le-error) 38%, var(--le-line)); background:color-mix(in srgb, var(--le-error) 6%, var(--le-surface)); }
       .le-modes { display:inline-flex; align-items:center; gap:2px; flex:none; margin:0; padding:3px; border:1px solid var(--le-line); border-radius:11px; background:color-mix(in srgb, var(--le-surface) 50%, transparent); }
       .le-mode {
         position:relative; display:flex; align-items:center; gap:5px; min-width:0; padding:4px 9px 4px 6px;
@@ -2280,6 +2999,25 @@ window.__ModuleLoader__.load({
       .le-send:hover:not(:disabled) { background:var(--dsw-alias-button-info-hover, var(--le-brand)); }
       .le-send:disabled { opacity:.4; cursor:default; }
       .le-send.is-stop { background:var(--dsw-alias-button-info-fill, var(--le-brand)); opacity:1; }
+      .le-history-pop { position:absolute; top:calc(100% + 9px); right:0; z-index:30; display:flex; flex-direction:column; gap:12px; width:332px; max-height:min(68vh, 540px); padding:14px; overflow:auto; border:1px solid var(--le-line-strong); border-radius:15px; background:var(--le-overlay); box-shadow:0 24px 65px -24px color-mix(in srgb, var(--le-ink) 35%, transparent); animation:le-pop .18s cubic-bezier(.2,.7,.2,1) both; }
+      .le-history-heading { display:flex; align-items:center; gap:8px; }
+      .le-history-heading strong { font-family:var(--le-serif); font-size:16px; font-weight:600; letter-spacing:-.02em; }
+      .le-history-total { display:grid; place-items:center; min-width:17px; height:17px; padding:0 4px; border-radius:999px; color:var(--le-muted); background:var(--le-soft); font-size:8px; font-weight:700; }
+      .le-history-list { display:flex; flex-direction:column; gap:7px; }
+      .le-history-item { display:flex; flex-direction:column; gap:5px; width:100%; padding:9px 10px 8px; border:1px solid var(--le-line); border-radius:10px; text-align:left; background:color-mix(in srgb, var(--le-surface) 48%, transparent); transition:border-color .16s ease, background-color .16s ease, transform .16s ease; }
+      .le-history-item:hover:not(:disabled) { border-color:color-mix(in srgb, var(--le-brand) 28%, var(--le-line)); background:var(--le-surface); transform:translateY(-1px); }
+      .le-history-item:disabled { opacity:.55; }
+      .le-history-item-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+      .le-history-mode { display:inline-flex; align-items:center; gap:4px; color:var(--le-brand); font-size:8px; font-weight:720; letter-spacing:.04em; }
+      .le-history-mode.is-polish { color:var(--le-polish); }
+      .le-history-mode svg { opacity:.8; }
+      .le-history-item time { color:var(--le-muted); font-size:8px; white-space:nowrap; }
+      .le-history-preview { display:-webkit-box; overflow:hidden; color:var(--le-ink); font-family:var(--le-serif); font-size:12px; line-height:1.5; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+      .le-history-meta { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--le-muted); font-size:8px; }
+      .le-history-meta svg { opacity:.5; }
+      .le-history-empty { display:flex; flex-direction:column; align-items:center; gap:8px; padding:20px 12px; border:1px dashed var(--le-line); border-radius:10px; color:var(--le-muted); text-align:center; }
+      .le-history-empty p { margin:0; font-size:10px; line-height:1.55; }
+      .le-history-note { margin:0; color:var(--le-muted); font-size:8.5px; line-height:1.5; }
       .le-pop { position:absolute; top:calc(100% + 9px); right:0; z-index:30; display:flex; flex-direction:column; gap:12px; width:292px; max-height:min(72vh, 590px); padding:14px; overflow:auto; border:1px solid var(--le-line-strong); border-radius:15px; background:var(--le-overlay); box-shadow:0 24px 65px -24px color-mix(in srgb, var(--le-ink) 35%, transparent); animation:le-pop .18s cubic-bezier(.2,.7,.2,1) both; }
       .le-pop-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
       .le-pop-head strong { font-family:var(--le-serif); font-size:16px; font-weight:600; letter-spacing:-.02em; }
@@ -2331,6 +3069,8 @@ window.__ModuleLoader__.load({
         .le-chip-label { display:none; }
         .le-status-text { display:none; }
         .le-status { width:30px; min-height:30px; justify-content:center; padding:0; }
+        .le-export-button span { display:none; }
+        .le-export-button { width:32px; padding:0; justify-content:center; }
       }
       @media (max-width:680px) {
         .le-header { gap:14px; flex-wrap:wrap; }
@@ -2349,7 +3089,7 @@ window.__ModuleLoader__.load({
         .le-avatar { width:28px; height:28px; border-radius:9px; font-size:14px; }
         .le-hint { display:none; }
         .le-composer { padding-left:12px; }
-        .le-pop { position:fixed; top:70px; right:12px; left:12px; width:auto; max-height:70vh; }
+        .le-pop, .le-history-pop { position:fixed; top:70px; right:12px; left:12px; width:auto; max-height:70vh; }
       }
       @media (max-width:440px) {
         .le-mark { width:40px; height:40px; border-radius:13px; }
@@ -2360,8 +3100,6 @@ window.__ModuleLoader__.load({
         .le-status { width:30px; min-height:30px; justify-content:center; padding:0; }
         .le-new-chat span { display:none; }
         .le-new-chat { width:32px; min-height:32px; justify-content:center; padding:0; }
-        .le-new-chat.is-confirm span { display:inline; }
-        .le-new-chat.is-confirm { width:auto; padding:0 10px; }
         .le-prose { font-size:15px; }
         .le-polished .le-prose { font-size:16px; }
         .le-empty { padding-top:22px; }

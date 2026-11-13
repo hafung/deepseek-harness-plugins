@@ -1,6 +1,6 @@
 # Learn English
 
-A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by Edge TTS and the local Qwen3-TTS engine.
+A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by Edge TTS and the local Qwen3-TTS engine. Past conversations are archived locally, and the current thread can be downloaded as a clean A4 PDF.
 
 ## Modes
 
@@ -19,9 +19,15 @@ Edge is generated first and can auto-play. Qwen appears in the same message as s
 
 Generated audio is cached under `$DSH_HOME/plugin-data/dsh-learn-english/audio`. The cache keeps the most recent 120 clips.
 
-## Conversation storage
+## Conversation storage and history
 
 Conversations stay on the page and never create or jump to a main Session. The current thread for each mode is kept in browser `localStorage`; the model receives only the recent turns (up to 16) as request context. A Host-side post-check rejects non-English replies: if a non-Latin script or CJK punctuation appears, the reply is silently repaired once, and a safe English fallback is used if repair fails.
+
+Starting a new chat does not delete the old one. The current thread is filed into **Chat history** automatically; open the clock button in the header to browse saved conversations, then click one to restore it. Up to 20 conversations are retained (40 messages each), with a further character budget so the browser storage stays within quota. Restoring a conversation also files any existing live thread of that mode back into history first.
+
+## Export as PDF
+
+The **Export PDF** button renders the current conversation to A4 pages in the browser and downloads a real `.pdf` file directly — no print dialog, no “Save as PDF” step. The layout uses a clean document design with a serif transcript, page-break protection for each exchange, mode/date metadata, and page numbers. The PDF is generated locally from the current conversation; no content leaves the machine.
 
 ## HTTP routes
 

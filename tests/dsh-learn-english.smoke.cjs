@@ -342,8 +342,37 @@ async function run() {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.waitForTimeout(250)
 
+  const downloadPromise = page.waitForEvent('download', { timeout: 60000 })
+  await page.getByRole('button', { name: '导出 PDF' }).click()
+  const download = await downloadPromise
+  assert.match(
+    download.suggestedFilename(),
+    /^learn-english-polish-\d{4}-\d{2}-\d{2}\.pdf$/,
+    'PDF export must download a dated PDF file',
+  )
+  const downloadPath = await download.path()
+  assert.ok(downloadPath, 'the downloaded PDF must have a readable path')
+  const pdfBytes = fs.readFileSync(downloadPath)
+  assert.equal(pdfBytes.subarray(0, 5).toString('latin1'), '%PDF-')
+  assert.ok(pdfBytes.length > 20_000, 'the exported PDF must contain rendered pages')
+  assert.ok(pdfBytes.toString('latin1').includes('/Count 1'))
+  fs.writeFileSync(path.resolve(__dirname, '../.scratch/learn-english-export.pdf'), pdfBytes)
+
   await page.getByRole('button', { name: '新对话' }).click()
-  await page.getByRole('button', { name: '清空当前对话？' }).click()
+  await page.waitForSelector('.le-empty--polish')
+  assert.equal(await page.locator('.le-msg').count(), 0)
+  await page.getByRole('button', { name: /历史对话/ }).click()
+  await page.waitForSelector('.le-history-pop')
+  assert.equal(await page.locator('.le-history-item').count(), 1)
+  assert.match(await page.locator('.le-history-item').first().innerText(), /地道润色/)
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-history.png') })
+  await page.locator('.le-history-item').first().click()
+  await page.waitForSelector('.le-msg')
+  assert.ok(await page.locator('.le-msg').count() >= 4, 'archived conversation must be restored')
+  await page.waitForSelector('.le-history-pop', { state: 'detached' })
+
+  await page.getByRole('button', { name: '新对话' }).click()
   await page.waitForSelector('.le-empty--polish')
   assert.equal(await page.locator('.le-msg').count(), 0)
 
