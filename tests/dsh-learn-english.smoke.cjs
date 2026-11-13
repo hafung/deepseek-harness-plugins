@@ -225,8 +225,54 @@ async function run() {
   assert.equal(disabledSend.opacity, '0.4')
   assert.equal(disabledSend.radius, '999px')
   assert.notEqual(disabledSend.background, 'rgba(0, 0, 0, 0)')
+  const desktopHeader = await page.evaluate(() => {
+    const modes = document.querySelector('.le-modes').getBoundingClientRect()
+    const subtitle = document.querySelector('.le-subtitle').getBoundingClientRect()
+    return {
+      modesLeft: modes.left,
+      modesTop: modes.top,
+      modesBottom: modes.bottom,
+      subtitleRight: subtitle.right,
+      subtitleTop: subtitle.top,
+      subtitleBottom: subtitle.bottom,
+    }
+  })
+  assert.ok(
+    desktopHeader.modesLeft >= desktopHeader.subtitleRight - 1,
+    'mode switch must sit to the right of the subtitle',
+  )
+  assert.ok(
+    desktopHeader.modesTop < desktopHeader.subtitleBottom &&
+      desktopHeader.modesBottom > desktopHeader.subtitleTop,
+    'mode switch and subtitle must share a row',
+  )
 
   await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-empty.png') })
+
+  await page.setViewportSize({ width: 760, height: 900 })
+  await page.waitForTimeout(250)
+  const tabletLayout = await page.evaluate(() => {
+    const shell = document.querySelector('.le-shell').getBoundingClientRect()
+    const modes = document.querySelector('.le-modes').getBoundingClientRect()
+    const actions = document.querySelector('.le-actions').getBoundingClientRect()
+    const brand = document.querySelector('.le-brand').getBoundingClientRect()
+    return {
+      width: window.innerWidth,
+      shellLeft: shell.left,
+      shellRight: shell.right,
+      brandRight: brand.right,
+      actionsRight: actions.right,
+      modesRight: modes.right,
+      modesLeft: modes.left,
+    }
+  })
+  assert.ok(tabletLayout.modesRight <= tabletLayout.shellRight + 1, 'mode switch overflows the shell at 760px')
+  assert.ok(tabletLayout.actionsRight <= tabletLayout.shellRight + 1, 'header actions overflow the shell at 760px')
+  assert.ok(tabletLayout.brandRight < tabletLayout.actionsRight, 'brand and actions overlap at 760px')
+  assert.ok(tabletLayout.modesLeft >= tabletLayout.shellLeft - 1, 'mode switch must stay inside the shell at 760px')
+  await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-tablet.png') })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.waitForTimeout(250)
 
   await page.getByRole('button', { name: /地道润色/ }).click()
   await page.waitForSelector('.le-empty--polish')

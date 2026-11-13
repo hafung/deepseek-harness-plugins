@@ -1940,7 +1940,25 @@ window.__ModuleLoader__.load({
                 { className: 'le-brand-copy' },
                 h('div', { className: 'le-kicker' }, t('kicker')),
                 h('h1', { className: 'le-title' }, titleHead ? `${titleHead} ` : '', h('em', null, titleTail)),
-                h('p', { className: 'le-subtitle' }, t('subtitle')),
+                h(
+                  'div',
+                  { className: 'le-brand-subrow' },
+                  h('p', { className: 'le-subtitle' }, t('subtitle')),
+                  h(
+                    'div',
+                    { className: 'le-modes', role: 'group', 'aria-label': 'Practice mode' },
+                    MODE_ORDER.map(item =>
+                      h(ModeCard, {
+                        key: item,
+                        mode: item,
+                        active: mode === item,
+                        disabled: busy,
+                        t,
+                        onClick: () => selectMode(item),
+                      }),
+                    ),
+                  ),
+                ),
               ),
             ),
             h(
@@ -1996,20 +2014,6 @@ window.__ModuleLoader__.load({
                 h(Glyph, { name: confirmClear ? 'alert' : 'plus', size: 14 }),
                 h('span', null, confirmClear ? t('controls.clearConfirm') : t('controls.newChat')),
               ),
-            ),
-          ),
-          h(
-            'div',
-            { className: 'le-modes', role: 'group', 'aria-label': 'Practice mode' },
-            MODE_ORDER.map(item =>
-              h(ModeCard, {
-                key: item,
-                mode: item,
-                active: mode === item,
-                disabled: busy,
-                t,
-                onClick: () => selectMode(item),
-              }),
             ),
           ),
           h(
@@ -2112,8 +2116,9 @@ window.__ModuleLoader__.load({
       .le-kicker::before { content:""; width:16px; height:1px; background:color-mix(in srgb, var(--le-brand) 72%, transparent); }
       .le-title { margin:0; font-family:var(--le-serif); font-size:clamp(29px, 3vw, 37px); line-height:1.04; font-weight:600; letter-spacing:-.045em; }
       .le-title em { color:var(--le-brand); font-weight:500; }
-      .le-subtitle { max-width:560px; margin:7px 0 0; color:var(--le-muted); font-size:12.5px; line-height:1.65; text-wrap:pretty; }
-      .le-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex-wrap:wrap; padding-top:3px; }
+      .le-brand-subrow { display:flex; align-items:center; gap:14px; flex-wrap:wrap; min-width:0; margin-top:7px; }
+      .le-subtitle { max-width:560px; margin:0; color:var(--le-muted); font-size:12.5px; line-height:1.65; text-wrap:pretty; }
+      .le-actions { display:flex; align-items:center; justify-content:flex-end; gap:7px; flex:none; flex-wrap:wrap; padding-top:3px; }
       .le-status { display:inline-flex; align-items:center; gap:7px; min-height:32px; padding:0 11px; border:1px solid var(--le-line); border-radius:999px; background:color-mix(in srgb, var(--le-surface) 70%, transparent); color:var(--le-muted); font-size:10.5px; font-weight:640; letter-spacing:.02em; transition:border-color .18s ease, background-color .18s ease; }
       .le-status:hover { border-color:var(--le-line-strong); background:var(--le-surface); }
       .le-status-dot { width:6px; height:6px; border-radius:50%; background:var(--le-muted); opacity:.45; }
@@ -2136,29 +2141,27 @@ window.__ModuleLoader__.load({
       .le-new-chat:hover:not(:disabled) { border-color:var(--le-line-strong); transform:translateY(-1px); }
       .le-new-chat:disabled { opacity:.55; }
       .le-new-chat.is-confirm { color:var(--le-error); border-color:color-mix(in srgb, var(--le-error) 38%, var(--le-line)); background:color-mix(in srgb, var(--le-error) 6%, var(--le-surface)); }
-      .le-modes { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; flex:none; margin:clamp(14px, 2.3vh, 22px) 0 12px; }
+      .le-modes { display:inline-flex; align-items:center; gap:2px; flex:none; margin:0; padding:3px; border:1px solid var(--le-line); border-radius:11px; background:color-mix(in srgb, var(--le-surface) 50%, transparent); }
       .le-mode {
-        position:relative; display:flex; align-items:flex-start; gap:11px; min-width:0; padding:11px 15px 11px 12px;
-        border:1px solid var(--le-line); border-radius:15px; text-align:left;
-        background:color-mix(in srgb, var(--le-surface) 52%, transparent);
-        transition:border-color .22s ease, background-color .22s ease, box-shadow .22s ease, transform .22s ease;
+        position:relative; display:flex; align-items:center; gap:5px; min-width:0; padding:4px 9px 4px 6px;
+        border:1px solid transparent; border-radius:8px; text-align:left;
+        background:transparent;
+        transition:border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
         overflow:hidden;
       }
-      .le-mode:hover:not(:disabled) { border-color:var(--le-line-strong); background:color-mix(in srgb, var(--le-surface) 82%, transparent); transform:translateY(-1px); }
+      .le-mode:hover:not(:disabled) { background:var(--le-hover); }
       .le-mode:disabled { opacity:.62; }
-      .le-mode.is-active { background:var(--le-surface); border-color:color-mix(in srgb, var(--le-brand) 28%, var(--le-line)); box-shadow:0 12px 30px -24px color-mix(in srgb, var(--le-ink) 45%, transparent); }
-      .le-mode--polish.is-active { border-color:color-mix(in srgb, var(--le-polish) 32%, var(--le-line)); }
-      .le-mode-rail { position:absolute; left:0; top:13px; bottom:13px; width:2px; border-radius:999px; background:transparent; transition:background-color .22s ease; }
-      .le-mode.is-active .le-mode-rail { background:var(--le-brand); }
-      .le-mode--polish.is-active .le-mode-rail { background:var(--le-polish); }
-      .le-mode-icon { display:grid; place-items:center; flex:none; width:32px; height:32px; margin-top:1px; border-radius:10px; color:var(--le-muted); background:var(--le-soft); transition:color .22s ease, background-color .22s ease; }
-      .le-mode.is-active .le-mode-icon { color:var(--le-brand); background:color-mix(in srgb, var(--le-brand) 10%, transparent); }
-      .le-mode--polish.is-active .le-mode-icon { color:var(--le-polish); background:color-mix(in srgb, var(--le-polish) 10%, transparent); }
-      .le-mode-copy { display:flex; flex-direction:column; min-width:0; gap:3px; }
-      .le-mode-title { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
-      .le-mode-title strong { font-family:var(--le-serif); font-size:15.5px; font-weight:600; letter-spacing:-.015em; }
-      .le-mode-tag { color:var(--le-muted); font-size:8.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
-      .le-mode-desc { overflow:hidden; color:var(--le-muted); font-size:10.8px; line-height:1.5; white-space:nowrap; text-overflow:ellipsis; }
+      .le-mode.is-active { background:var(--le-surface); border-color:color-mix(in srgb, var(--le-brand) 24%, var(--le-line)); box-shadow:0 1px 3px color-mix(in srgb, var(--le-ink) 8%, transparent); }
+      .le-mode--polish.is-active { border-color:color-mix(in srgb, var(--le-polish) 28%, var(--le-line)); }
+      .le-mode-rail { display:none; }
+      .le-mode-icon { display:grid; place-items:center; flex:none; width:22px; height:22px; border-radius:7px; color:var(--le-muted); background:transparent; transition:color .18s ease, background-color .18s ease; }
+      .le-mode.is-active .le-mode-icon { color:var(--le-brand); background:color-mix(in srgb, var(--le-brand) 9%, transparent); }
+      .le-mode--polish.is-active .le-mode-icon { color:var(--le-polish); background:color-mix(in srgb, var(--le-polish) 9%, transparent); }
+      .le-mode-copy { display:flex; flex-direction:column; min-width:0; gap:0; }
+      .le-mode-title { display:flex; align-items:baseline; gap:0; flex-wrap:nowrap; }
+      .le-mode-title strong { font-family:var(--le-serif); font-size:12.5px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; }
+      .le-mode-tag { display:none; }
+      .le-mode-desc { display:none; }
       .le-thread {
         flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden;
         margin:0 -8px; padding:8px 8px 10px; scrollbar-width:thin;
@@ -2326,16 +2329,19 @@ window.__ModuleLoader__.load({
         .le-shell { padding-inline:clamp(16px, 3.2vw, 26px); }
         .le-subtitle { max-width:420px; }
         .le-chip-label { display:none; }
+        .le-status-text { display:none; }
+        .le-status { width:30px; min-height:30px; justify-content:center; padding:0; }
       }
       @media (max-width:680px) {
         .le-header { gap:14px; flex-wrap:wrap; }
+        .le-brand { width:100%; }
+        .le-brand-copy { flex:1 1 auto; }
+        .le-brand-subrow { gap:8px; }
         .le-actions { width:100%; justify-content:flex-start; }
-        .le-modes { gap:7px; }
-        .le-mode { padding:9px 10px 9px 9px; gap:8px; }
-        .le-mode-icon { width:28px; height:28px; border-radius:8px; }
-        .le-mode-desc { display:none; }
-        .le-mode-title { gap:5px; }
-        .le-mode-title strong { font-size:14px; }
+        .le-modes { display:flex; width:100%; gap:2px; }
+        .le-mode { flex:1 1 0; justify-content:center; padding:5px 8px; gap:6px; }
+        .le-mode-icon { width:22px; height:22px; border-radius:7px; }
+        .le-mode-title strong { font-size:13px; }
         .le-thread { margin-inline:-4px; padding-inline:4px; }
         .le-user-wrap { max-width:92%; }
         .le-msg--user { padding-left:4%; }
@@ -2364,9 +2370,6 @@ window.__ModuleLoader__.load({
       }
       @media (max-height:720px) and (min-width:681px) {
         .le-subtitle { display:none; }
-        .le-modes { margin-top:12px; }
-        .le-mode { padding-top:8px; padding-bottom:8px; }
-        .le-mode-desc { display:none; }
         .le-empty { padding-top:18px; }
         .le-sample { display:none; }
       }
