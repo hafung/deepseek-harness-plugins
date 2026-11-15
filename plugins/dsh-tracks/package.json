@@ -1,0 +1,50 @@
+{
+  "name": "@local/dsh-tracks",
+  "version": "1.0.0",
+  "private": true,
+  "title": "航迹",
+  "description": "在侧栏脚部记录等级、航迹纪录、航行人格与任务徽章，可回填历史会话并导出分享卡。",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "package.json",
+    "README.md",
+    "server/*.js",
+    "medals/*",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "license": "MIT",
+  "author": "hafung",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hafung/deepseek-harness-plugins.git",
+    "directory": "plugins/dsh-tracks"
+  },
+  "homepage": "https://github.com/hafung/deepseek-harness-plugins/tree/main/plugins/dsh-tracks#readme",
+  "bugs": {
+    "url": "https://github.com/hafung/deepseek-harness-plugins/issues"
+  }
+}

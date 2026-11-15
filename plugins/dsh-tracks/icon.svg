@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="航迹">
+  <defs>
+    <linearGradient id="tracks-orbit" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4f8cff"/>
+      <stop offset="0.55" stop-color="#38b6c8"/>
+      <stop offset="1" stop-color="#7a5cff"/>
+    </linearGradient>
+    <radialGradient id="tracks-core" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.92"/>
+      <stop offset="0.45" stop-color="#8fc4ff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#3d63c8" stop-opacity="0.95"/>
+    </radialGradient>
+  </defs>
+  <rect width="48" height="48" rx="12" fill="#0e1526"/>
+  <g fill="none" stroke="url(#tracks-orbit)" stroke-linecap="round">
+    <ellipse cx="24" cy="24" rx="17" ry="9.4" stroke-width="2.1" transform="rotate(-24 24 24)" opacity="0.9"/>
+    <ellipse cx="24" cy="24" rx="17" ry="9.4" stroke-width="1.1" transform="rotate(-24 24 24)" opacity="0.35" stroke-dasharray="1.5 4.5"/>
+  </g>
+  <circle cx="24" cy="24" r="6.4" fill="url(#tracks-core)"/>
+  <path d="M24 17.4a6.6 6.6 0 0 1 6.6 6.6" fill="none" stroke="#0e1526" stroke-opacity="0.35" stroke-width="1.2"/>
+  <g fill="#0e1526">
+    <circle cx="24" cy="24" r="9.1" fill="none" stroke="#7fd8ea" stroke-opacity="0.28" stroke-width="1"/>
+  </g>
+  <g fill="#8be0ee">
+    <circle cx="37.6" cy="15.4" r="2.5"/>
+    <circle cx="9.4" cy="31.2" r="1.5" opacity="0.72"/>
+    <circle cx="41.2" cy="28.6" r="1.1" opacity="0.55"/>
+  </g>
+  <path d="M17.4 40.6h13.2" stroke="url(#tracks-orbit)" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+</svg>

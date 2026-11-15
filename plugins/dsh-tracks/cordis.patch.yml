@@ -1,0 +1,6 @@
+# 航迹 (tracks) — ledger, level track, record wall, personality and medals.
+# The Host row owns the durable ledger and the JSON routes; the client row is
+# declared by `dsh.client` in package.json and renders the sidebar-foot badge.
+- insert:
+    - id: local-tracks
+      name: '@local/dsh-tracks'
