@@ -31,13 +31,18 @@ async function main() {
   const messages = prompts.prepareMessages('polish', [
     { role: 'user', content: `first ${'a'.repeat(9000)}` },
     { role: 'assistant', content: `second ${'b'.repeat(9000)}` },
-    { role: 'user', content: `third ${'c'.repeat(9000)}` },
-    { role: 'assistant', content: `fourth ${'d'.repeat(9000)}` },
     { role: 'user', content: '这个方案我觉得还行，但预算有点高。' },
   ])
-  assert.ok(messages.length < 5, 'older turns should be dropped when the budget is tight')
-  assert.equal(messages[messages.length - 1].role, 'user')
-  assert.match(messages[messages.length - 1].content[0].text, /预算/)
+  assert.equal(messages.length, 1, 'Polish must not carry prior turns into the model')
+  assert.equal(messages[0].role, 'user')
+  assert.match(messages[0].content[0].text, /预算/)
+
+  const freeMessages = prompts.prepareMessages('free', [
+    { role: 'user', content: 'I like coffee.' },
+    { role: 'assistant', content: 'Coffee is great. Do you have a favorite kind?' },
+    { role: 'user', content: 'I like lattes.' },
+  ])
+  assert.equal(freeMessages.length, 3, 'Free talk must keep its conversation context')
 
   assert.equal(prompts.toSpeechText('**Hello** `there` — [link](https://example.com)'), 'Hello there — link')
   assert.equal(prompts.toSpeechText('# Heading\n\n- First item\n- Second item').includes('#'), false)

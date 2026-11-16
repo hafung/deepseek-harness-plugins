@@ -5,7 +5,7 @@ A private English studio inside DeepSeek Harness. The left-sidebar entry opens a
 ## Modes
 
 - **Free talk** — Alex is a warm American English conversation partner. The model is instructed to reply only in English, keep the exchange conversational, and model corrections naturally.
-- **Polish** — the latest message is *content to rewrite*, never a question to answer. Chinese, mixed language, or rough English is understood first, then expressed as everyday American English. If the input is already natural, it comes back unchanged. The visible output is only the final English version.
+- **Polish** — the latest message is *content to rewrite*, never a question to answer. Chinese, mixed language, or rough English is understood first, then expressed as everyday American English. If the input is already natural, it comes back unchanged. The visible output is only the final English version. Each rewrite is independent: earlier turns remain visible in the transcript, but they are not sent to the model.
 - The Host keeps a mode registry in `server/prompts.js`; adding another practice mode means adding one definition there plus its `MODE_ORDER`, `MODE_STYLE`, and dictionary entries in `client.js`.
 
 ## Voice
@@ -21,7 +21,7 @@ Generated audio is cached under `$DSH_HOME/plugin-data/dsh-learn-english/audio`.
 
 ## Conversation storage and history
 
-Conversations stay on the page and never create or jump to a main Session. The current thread for each mode is kept in browser `localStorage`; the model receives only the recent turns (up to 16) as request context. A Host-side post-check rejects non-English replies: if a non-Latin script or CJK punctuation appears, the reply is silently repaired once, and a safe English fallback is used if repair fails.
+Conversations stay on the page and never create or jump to a main Session. The current thread for each mode is kept in browser `localStorage`. Free talk sends the recent turns (up to 16) as context; Polish sends only the current user message, so each rewrite is stateless even though the full transcript stays visible in one list. A Host-side post-check rejects non-English replies: if a non-Latin script or CJK punctuation appears, the reply is silently repaired once, and a safe English fallback is used if repair fails.
 
 Starting a new chat does not delete the old one. The current thread is filed into **Chat history** automatically; open the clock button in the header to browse saved conversations, then click one to restore it. Up to 20 conversations are retained (40 messages each), with a further character budget so the browser storage stays within quota. Restoring a conversation also files any existing live thread of that mode back into history first.
 

@@ -313,8 +313,7 @@ async function run() {
     const chats = window.calls.filter(call => call.url.endsWith('/chat'))
     return chats[chats.length - 1].body.messages.map(message => message.role)
   })
-  assert.ok(secondChat.includes('assistant'), 'the client must send prior assistant turns')
-  assert.equal(secondChat[secondChat.length - 1], 'user')
+  assert.deepEqual(secondChat, ['user'], 'Polish sends only the current user message')
 
   await page.getByRole('button', { name: /语音与播放/ }).click()
   await page.waitForSelector('.le-pop')

@@ -2864,14 +2864,21 @@ window.__ModuleLoader__.load({
         if (!text) return
         const requestMode = mode
         const thread = store.threads[requestMode] ?? []
-        const history = thread
-          .filter(
-            message =>
-              message.role === 'user' ||
-              (message.role === 'assistant' && message.status === 'done' && message.content.trim()),
-          )
-          .slice(-16)
-          .map(message => ({ role: message.role, content: message.content }))
+        // Polish is stateless by design: the transcript stays visible in the UI,
+        // but each rewrite is an independent request and carries no prior turns.
+        const history =
+          requestMode === 'polish'
+            ? []
+            : thread
+                .filter(
+                  message =>
+                    message.role === 'user' ||
+                    (message.role === 'assistant' &&
+                      message.status === 'done' &&
+                      message.content.trim()),
+                )
+                .slice(-16)
+                .map(message => ({ role: message.role, content: message.content }))
         const now = Date.now()
         const assistantId = makeId()
         const userMessage = {
@@ -2921,15 +2928,20 @@ window.__ModuleLoader__.load({
           }
         }
         if (userIndex < 0) return
-        const history = thread
-          .slice(0, index)
-          .filter(
-            message =>
-              message.role === 'user' ||
-              (message.role === 'assistant' && message.status === 'done' && message.content.trim()),
-          )
-          .slice(-16)
-          .map(message => ({ role: message.role, content: message.content }))
+        const history =
+          requestMode === 'polish'
+            ? [{ role: 'user', content: thread[userIndex].content }]
+            : thread
+                .slice(0, index)
+                .filter(
+                  message =>
+                    message.role === 'user' ||
+                    (message.role === 'assistant' &&
+                      message.status === 'done' &&
+                      message.content.trim()),
+                )
+                .slice(-16)
+                .map(message => ({ role: message.role, content: message.content }))
         const assistantId = makeId()
         const replacement = {
           id: assistantId,
