@@ -366,6 +366,36 @@ async function run() {
     { timeout: 30000 },
   )
 
+  const firstAssistant = page.locator('.le-msg--assistant').first()
+  await firstAssistant.hover()
+  await page.waitForTimeout(300)
+  await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-delete-actions.png') })
+  const assistantDelete = firstAssistant.locator('.le-action--danger')
+  assert.equal(await assistantDelete.count(), 1, 'Polish assistant messages expose delete')
+  await assistantDelete.click()
+  assert.match(await assistantDelete.getAttribute('aria-label'), /确认删除/)
+  await assistantDelete.click()
+  await page.waitForFunction(
+    () => document.querySelectorAll('.le-msg--assistant').length === 1,
+    null,
+    { timeout: 5000 },
+  )
+  assert.equal(await page.locator('.le-msg').count(), 3)
+
+  const firstUser = page.locator('.le-msg--user').first()
+  await firstUser.hover()
+  const userDelete = firstUser.locator('.le-action--danger')
+  assert.equal(await userDelete.count(), 1, 'Polish user messages expose delete')
+  await userDelete.click()
+  await userDelete.click()
+  await page.waitForFunction(
+    () => document.querySelectorAll('.le-msg').length === 2,
+    null,
+    { timeout: 5000 },
+  )
+  assert.equal(await page.locator('.le-msg--assistant').count(), 1)
+  assert.equal(await page.locator('.le-msg--user').count(), 1)
+
   await page.getByRole('button', { name: '导出', exact: true }).click()
   await page.waitForSelector('.le-export-menu')
   const zipDownloadPromise = page.waitForEvent('download', { timeout: 60000 })
@@ -399,7 +429,7 @@ async function run() {
   await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-history.png') })
   await page.locator('.le-history-item').first().click()
   await page.waitForSelector('.le-msg')
-  assert.ok(await page.locator('.le-msg').count() >= 4, 'archived conversation must be restored')
+  assert.ok(await page.locator('.le-msg').count() >= 2, 'archived conversation must be restored')
   await page.waitForSelector('.le-history-pop', { state: 'detached' })
 
   await page.getByRole('button', { name: '新对话' }).click()

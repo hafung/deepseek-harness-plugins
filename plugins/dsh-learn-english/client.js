@@ -121,6 +121,8 @@ window.__ModuleLoader__.load({
         'message.regenerate': 'Regenerate',
         'message.copy': 'Copy',
         'message.copied': 'Copied',
+        'message.delete': 'Delete',
+        'message.confirmDelete': 'Confirm delete',
         'message.download': 'Download audio',
         'composer.free.placeholder': 'Say anything. Alex will keep the conversation going in English.',
         'composer.polish.placeholder': 'Write what you want to say — Chinese, rough English, or both.',
@@ -241,6 +243,8 @@ window.__ModuleLoader__.load({
         'message.regenerate': '重新生成',
         'message.copy': '复制',
         'message.copied': '已复制',
+        'message.delete': '删除',
+        'message.confirmDelete': '确认删除',
         'message.download': '下载音频',
         'composer.free.placeholder': '想说什么都可以。Alex 会继续用英文和你聊。',
         'composer.polish.placeholder': '写下你想说的话——中文、散装英语，或者中英混着来。',
@@ -309,6 +313,7 @@ window.__ModuleLoader__.load({
       refresh: ['M20 11a8 8 0 1 0-2.3 6.7', 'M20 4.5V11h-6.4'],
       clock: ['M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17Z', 'M12 7.7V12l3.1 1.9'],
       archive: ['M4 8.2h16v11.3H4z', 'M3 4.5h18v3.7H3z', 'M9.2 12.2h5.6'],
+      trash: ['M4.5 7h15', 'M9.5 7V4.8h5V7', 'M6.5 7l.8 13h9.4l.8-13', 'M10 11v5.5M14 11v5.5'],
       sparkles: [
         'M12 3.4l1.8 4.9 4.9 1.8-4.9 1.8L12 16.8l-1.8-4.9-4.9-1.8 4.9-1.8L12 3.4Z',
         'M18.6 15.3l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z',
@@ -818,11 +823,26 @@ window.__ModuleLoader__.load({
           const lineHeight = 42
           const padding = 22
           const boxHeight = lines.length * lineHeight + padding * 2
+          const separator = index > 0
+          const separatorSpace = separator ? 52 : 0
+          const pageCountBefore = pages.length
           if (
-            current.y + 34 + boxHeight > PDF_PAGE_BOTTOM &&
+            current.y + 34 + separatorSpace + boxHeight > PDF_PAGE_BOTTOM &&
             34 + boxHeight <= PDF_PAGE_BOTTOM - PDF_RUNNING_TOP
           ) {
             newPage(false)
+          }
+          if (separator && pages.length === pageCountBefore) {
+            current.y += 16
+            ctx.globalAlpha = 0.7
+            ctx.strokeStyle = PDF_LINE
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(PDF_MARGIN, current.y)
+            ctx.lineTo(PDF_CANVAS_WIDTH - PDF_MARGIN, current.y)
+            ctx.stroke()
+            ctx.globalAlpha = 1
+            current.y += 36
           }
           drawLabel(t('message.you'), index)
           let remaining = lines.slice()
@@ -857,7 +877,7 @@ window.__ModuleLoader__.load({
             current.y += height + 24
             if (remaining.length) newPage(false)
           }
-          current.y += 12
+          current.y += 18
           return
         }
 
@@ -897,7 +917,7 @@ window.__ModuleLoader__.load({
           current.y += chunk.length * lineHeight + 8
           if (remaining.length) newPage(false)
         }
-        current.y += 22
+        current.y += 34
       })
 
       pages.forEach((page, index) => drawPdfFooter(page.ctx, index + 1, pages.length, t))
@@ -2001,12 +2021,16 @@ window.__ModuleLoader__.load({
       autoTts,
       onRetry,
       onRegenerate,
+      onDelete,
     }) {
       const [copied, setCopied] = useState(false)
+      const [confirmDelete, setConfirmDelete] = useState(false)
       const copyTimer = useRef(null)
+      const deleteTimer = useRef(null)
       useEffect(
         () => () => {
           if (copyTimer.current) clearTimeout(copyTimer.current)
+          if (deleteTimer.current) clearTimeout(deleteTimer.current)
         },
         [],
       )
@@ -2033,6 +2057,20 @@ window.__ModuleLoader__.load({
         }
       }
 
+      function requestDelete() {
+        if (busy) return
+        if (!confirmDelete) {
+          setConfirmDelete(true)
+          if (deleteTimer.current) clearTimeout(deleteTimer.current)
+          deleteTimer.current = setTimeout(() => setConfirmDelete(false), 2800)
+          return
+        }
+        if (deleteTimer.current) clearTimeout(deleteTimer.current)
+        deleteTimer.current = null
+        setConfirmDelete(false)
+        onDelete(message.id)
+      }
+
       if (message.role === 'user') {
         return h(
           'article',
@@ -2056,6 +2094,25 @@ window.__ModuleLoader__.load({
                 },
                 h(Glyph, { name: copied ? 'check' : 'copy', size: 13 }),
               ),
+              mode === 'polish'
+                ? h(
+                    'button',
+                    {
+                      type: 'button',
+                      className: `le-action le-action--danger${confirmDelete ? ' is-confirm' : ''}`,
+                      onClick: requestDelete,
+                      disabled: busy,
+                      title: confirmDelete
+                        ? t('message.confirmDelete')
+                        : t('message.delete'),
+                      'aria-label': confirmDelete
+                        ? t('message.confirmDelete')
+                        : t('message.delete'),
+                    },
+                    h(Glyph, { name: 'trash', size: 13 }),
+                    h('span', null, confirmDelete ? t('message.confirmDelete') : t('message.delete')),
+                  )
+                : null,
             ),
           ),
         )
@@ -2185,6 +2242,25 @@ window.__ModuleLoader__.load({
                       },
                       h(Glyph, { name: 'refresh', size: 13 }),
                       h('span', null, t('message.regenerate')),
+                    )
+                  : null,
+                isPolish && !streaming
+                  ? h(
+                      'button',
+                      {
+                        type: 'button',
+                        className: `le-action le-action--danger${confirmDelete ? ' is-confirm' : ''}`,
+                        onClick: requestDelete,
+                        disabled: busy,
+                        title: confirmDelete
+                          ? t('message.confirmDelete')
+                          : t('message.delete'),
+                        'aria-label': confirmDelete
+                          ? t('message.confirmDelete')
+                          : t('message.delete'),
+                      },
+                      h(Glyph, { name: 'trash', size: 13 }),
+                      h('span', null, confirmDelete ? t('message.confirmDelete') : t('message.delete')),
                     )
                   : null,
                 message.status === 'stopped' && hasContent
@@ -2974,6 +3050,21 @@ window.__ModuleLoader__.load({
         activeRequestRef.current?.abort()
       }
 
+      function deleteMessage(messageId) {
+        if (busyRef.current || exportingRef.current) return
+        setFreshId(current => (current === messageId ? '' : current))
+        setStore(previous => {
+          const thread = previous.threads[previous.mode] ?? []
+          return {
+            ...previous,
+            threads: {
+              ...previous.threads,
+              [previous.mode]: thread.filter(message => message.id !== messageId),
+            },
+          }
+        })
+      }
+
       function makeArchive(archiveMode, archiveMessages) {
         return {
           id: makeId(),
@@ -3298,6 +3389,7 @@ window.__ModuleLoader__.load({
                       autoTts: message.id === freshId,
                       onRetry: regenerate,
                       onRegenerate: regenerate,
+                      onDelete: deleteMessage,
                     }),
                   ),
               h('div', { className: 'le-thread-tail', 'aria-hidden': true }),
@@ -3514,6 +3606,9 @@ window.__ModuleLoader__.load({
       .le-msg:hover .le-msg-actions, .le-msg:focus-within .le-msg-actions { opacity:1; }
       .le-action { display:inline-flex; align-items:center; gap:5px; min-height:24px; padding:0 7px; border:0; border-radius:6px; background:transparent; color:var(--le-muted); font-size:9.5px; font-weight:620; transition:color .16s ease, background-color .16s ease; }
       .le-action:hover { color:var(--le-ink); background:var(--le-hover); }
+      .le-action:disabled { opacity:.45; }
+      .le-action--danger:hover:not(:disabled) { color:var(--le-error); background:color-mix(in srgb, var(--le-error) 7%, transparent); }
+      .le-action--danger.is-confirm { color:var(--le-error); background:color-mix(in srgb, var(--le-error) 9%, transparent); }
       .le-msg-note { margin-left:5px; color:var(--le-muted); font-size:9.5px; }
       .le-stopped { display:flex; align-items:center; gap:6px; margin-top:5px; color:var(--le-muted); font-size:11px; }
       .le-error { display:flex; align-items:flex-start; gap:9px; margin-top:10px; padding:10px 12px; border:1px solid color-mix(in srgb, var(--le-error) 25%, var(--le-line)); border-radius:11px; color:var(--le-error); background:color-mix(in srgb, var(--le-error) 5%, transparent); }

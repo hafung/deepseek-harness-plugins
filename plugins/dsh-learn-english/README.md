@@ -5,7 +5,7 @@ A private English studio inside DeepSeek Harness. The left-sidebar entry opens a
 ## Modes
 
 - **Free talk** — Alex is a warm American English conversation partner. The model is instructed to reply only in English, keep the exchange conversational, and model corrections naturally.
-- **Polish** — the latest message is *content to rewrite*, never a question to answer. Chinese, mixed language, or rough English is understood first, then expressed as everyday American English. If the input is already natural, it comes back unchanged. The visible output is only the final English version. Each rewrite is independent: earlier turns remain visible in the transcript, but they are not sent to the model.
+- **Polish** — the latest message is *content to rewrite*, never a question to answer. Chinese, mixed language, or rough English is understood first, then expressed as everyday American English. If the input is already natural, it comes back unchanged. The visible output is only the final English version. Each rewrite is independent: earlier turns remain visible in the transcript, but they are not sent to the model. Hover a user or assistant message in Polish mode to reveal its actions; delete either side independently (with a second-click confirmation). Deleted messages are omitted from PDF/ZIP exports immediately.
 - The Host keeps a mode registry in `server/prompts.js`; adding another practice mode means adding one definition there plus its `MODE_ORDER`, `MODE_STYLE`, and dictionary entries in `client.js`.
 
 ## Voice
@@ -29,7 +29,7 @@ Starting a new chat does not delete the old one. The current thread is filed int
 
 The header's **Export** menu offers two direct downloads.
 
-**Export PDF** renders the current conversation to A4 pages in the browser and downloads a real `.pdf` file directly — no print dialog, no “Save as PDF” step. The layout uses a clean document design with a serif transcript, page-break protection for each exchange, mode/date metadata, and page numbers.
+**Export PDF** renders the current conversation to A4 pages in the browser and downloads a real `.pdf` file directly — no print dialog, no “Save as PDF” step. The layout uses a clean document design with a serif transcript, a divider and generous spacing between Q&A groups, page-break protection for each exchange, mode/date metadata, and page numbers.
 
 **Export ZIP** downloads a folder-ready archive containing:
 
