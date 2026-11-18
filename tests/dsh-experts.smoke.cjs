@@ -188,6 +188,7 @@ async function check() {
     const input = () => page.getByLabel('会话输入框')
     const apply = name => button(`应用 ${name}`)
     const field = label => page.locator(`[aria-label="${label}"]`)
+    const builtinCount = 6
     // The dialog schedules initial focus; wait for it before filling other fields.
     const waitEditorFocus = () => page.waitForFunction(() =>
       document.activeElement?.getAttribute('aria-label') === '专家名称')
@@ -200,8 +201,8 @@ async function check() {
     await page.goto('https://experts-check.test/')
     await button('专家').click()
     await heading().waitFor()
-    assert.equal(await cards().count(), 10)
-    assert.equal(await page.locator('.dsh-exp-count').innerText(), '10 位')
+    assert.equal(await cards().count(), builtinCount)
+    assert.equal(await page.locator('.dsh-exp-count').innerText(), `${builtinCount} 位`)
     assert.equal(await page.locator('.dsh-exp-topline .dsh-exp-tool').count(), 2)
     assert.equal(await page.locator('.dsh-exp-toolbar .dsh-exp-tool').count(), 0)
     assert.equal(await page.getByRole('heading', { name: /^专家/ }).count(), 1)
@@ -228,18 +229,13 @@ async function check() {
     // Append to an existing draft, keep it, then undo through the toast.
     await input().fill('已有草稿')
     await button('专家').click()
-    await apply('代码审查专家').click()
+    await button('编辑 数据分析师').click()
+    const analystPrompt = await field('提示词').inputValue()
+    assert.match(analystPrompt, /^你是一位重视因果与可复现性的数据分析师/)
+    await button('取消').click()
+    await apply('数据分析师').click()
     await input().waitFor()
-    assert.equal(
-      await input().inputValue(),
-      '已有草稿\n\n你是一位资深代码审查者，关注正确性、安全性与可维护性，而不是风格偏好。'
-        + '\n\n请审查我提供的改动：\n1. 先概述改动意图与影响范围。'
-        + '\n2. 按严重程度列出问题：阻断 / 重要 / 建议。每条给出文件与行号、触发条件、后果和最小修复方案。'
-        + '\n3. 重点检查边界条件、并发与竞态、错误处理、资源释放、权限与注入风险、向后兼容。'
-        + '\n4. 明确指出「没有发现问题」的部分，避免为了凑数而提建议。'
-        + '\n5. 最后给出是否建议合并的结论。'
-        + '\n\n不要重写整个文件，只给必要的补丁片段。',
-    )
+    assert.equal(await input().inputValue(), `已有草稿\n\n${analystPrompt}`)
     await page.getByText('已追加到现有草稿末尾').waitFor()
     await page.getByRole('button', { name: '撤销' }).click()
     assert.equal(await input().inputValue(), '已有草稿')
@@ -256,7 +252,7 @@ async function check() {
     await waitEnabled('创建专家')
     await button('创建专家').click()
     await page.getByText('测试专家', { exact: true }).waitFor()
-    assert.equal(await cards().count(), 11)
+    assert.equal(await cards().count(), builtinCount + 1)
     await page.reload()
     await button('专家').click()
     await heading().waitFor()
@@ -270,11 +266,11 @@ async function check() {
     await page.getByText('没有匹配的专家').waitFor()
     await page.getByRole('button', { name: '清除筛选' }).click()
     await search.fill('')
-    assert.equal(await cards().count(), 11)
+    assert.equal(await cards().count(), builtinCount + 1)
     await page.getByRole('button', { name: /^写作/ }).click()
     assert.equal(await cards().count(), 3)
     await page.getByRole('button', { name: /^全部/ }).click()
-    assert.equal(await cards().count(), 11)
+    assert.equal(await cards().count(), builtinCount + 1)
 
     // Favorite, edit, export, delete.
     await page.getByRole('button', { name: '收藏 测试专家' }).click()
@@ -297,7 +293,7 @@ async function check() {
     const backup = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     assert.equal(backup.format, 'dsh-experts')
     assert.equal(backup.version, 1)
-    assert.equal(backup.presets.length, 11)
+    assert.equal(backup.presets.length, builtinCount + 1)
     const exported = backup.presets.find(item => item.name === '测试专家 v2')
     assert.equal(exported.prompt, '这是测试提示词。')
     assert.equal(exported.category, 'writing')
@@ -306,7 +302,7 @@ async function check() {
     await page.getByRole('alertdialog').waitFor()
     await button('确认删除').click()
     await page.getByText('测试专家 v2', { exact: true }).waitFor({ state: 'detached' })
-    assert.equal(await cards().count(), 10)
+    assert.equal(await cards().count(), builtinCount)
 
     // Import merges new ids and skips duplicates or malformed backups.
     const imported = {
@@ -332,7 +328,7 @@ async function check() {
     await pickBackup(imported)
     await page.getByText('已导入 1 位专家').waitFor()
     await page.getByText('导入的专家', { exact: true }).waitFor()
-    assert.equal(await cards().count(), 11)
+    assert.equal(await cards().count(), builtinCount + 1)
     await pickBackup(imported)
     await page.getByText('没有新的专家可导入。').waitFor()
     await pickBackup({ ...imported, version: 2 })
@@ -344,13 +340,13 @@ async function check() {
     await page.getByText(/导入失败：提示词不能为空/).waitFor()
 
     // Restore one deleted built-in.
-    await page.getByRole('button', { name: '删除 会议纪要官' }).click()
+    await button('删除 产品经理').click()
     await page.getByRole('alertdialog').waitFor()
     await button('确认删除').click()
-    await page.getByText('会议纪要官', { exact: true }).waitFor({ state: 'detached' })
+    await page.getByText('产品经理', { exact: true }).waitFor({ state: 'detached' })
     await button('恢复内置专家').click()
     await page.getByText('已恢复 1 位内置专家。').waitFor()
-    await page.getByText('会议纪要官', { exact: true }).waitFor()
+    await page.getByText('产品经理', { exact: true }).waitFor()
 
     // Restoring also reverts edits to built-ins; custom experts stay untouched.
     await page.getByRole('button', { name: '编辑 深度研究员' }).click()
@@ -428,7 +424,7 @@ async function check() {
     await page.getByText('专家库暂时不可用').waitFor()
     await button('重置专家库').click()
     await page.getByText('本地专家库已重置为内置专家。').waitFor()
-    assert.equal(await cards().count(), 10)
+    assert.equal(await cards().count(), builtinCount)
 
     assert.equal(failures.length, 0, failures.map(String).join('\n'))
     console.log('PASS: expert CRUD, search, filters, apply/append/undo, import/export, restore, session fallback and locked composer')
