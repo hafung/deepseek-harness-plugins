@@ -291,16 +291,16 @@ async function run() {
   await page.waitForSelector('.le-polished', { timeout: 10000 })
   assert.equal(await page.locator('.le-polished-label').count(), 0)
   assert.doesNotMatch(await page.locator('.le-polished').innerText(), /自然美式表达/)
-  await page.waitForFunction(() => document.querySelectorAll('.le-voice.is-ready').length === 2, null, { timeout: 10000 })
+  await page.waitForFunction(() => document.querySelectorAll('.le-voice.is-ready').length === 1, null, { timeout: 10000 })
   const voiceBox = await page.locator('.le-voices').boundingBox()
   const polishedBox = await page.locator('.le-polished').boundingBox()
   const firstChip = await page.locator('.le-voice').first().boundingBox()
   assert.ok(voiceBox.y + voiceBox.height <= polishedBox.y + 1, 'audio controls must sit above the answer box')
   assert.ok(firstChip.width < 150 && firstChip.height < 34, 'audio chips must be compact')
   assert.match(await page.locator('.le-polished .le-prose').innerText(), /I really like this city/)
-  assert.equal(await page.locator('.le-voice').count(), 2)
+  assert.equal(await page.locator('.le-voice').count(), 1, 'Qwen is disabled by default')
   const ttsCalls = await page.evaluate(() => window.calls.filter(call => call.url.endsWith('/tts')).map(call => call.body.engine))
-  assert.deepEqual(ttsCalls.sort(), ['edge', 'qwen'])
+  assert.deepEqual(ttsCalls, ['edge'], 'only Edge TTS should synthesize by default')
   assert.equal(await page.locator('.le-polished .le-caret').count(), 0)
 
   await page.waitForTimeout(500)
@@ -320,8 +320,25 @@ async function run() {
   assert.ok(await page.locator('.le-pop').isVisible())
   assert.equal(await page.locator('.le-pop select').nth(0).inputValue(), 'en-US-EmmaNeural')
   assert.equal(await page.locator('.le-pop select').nth(1).inputValue(), 'serena')
+  const edgeSwitch = page.getByRole('switch', { name: 'Edge TTS' })
+  const qwenSwitch = page.getByRole('switch', { name: 'Qwen3-TTS' })
+  assert.equal(await edgeSwitch.getAttribute('aria-checked'), 'true')
+  assert.equal(await qwenSwitch.getAttribute('aria-checked'), 'false')
   await page.waitForTimeout(300)
   await page.screenshot({ path: path.resolve(__dirname, '../.scratch/learn-english-settings.png') })
+  await qwenSwitch.click()
+  assert.equal(await qwenSwitch.getAttribute('aria-checked'), 'true')
+  await page.waitForFunction(
+    () => {
+      const messages = document.querySelectorAll('.le-msg--assistant')
+      const latest = messages[messages.length - 1]
+      return latest && latest.querySelectorAll('.le-voice.is-ready').length === 2
+    },
+    null,
+    { timeout: 15000 },
+  )
+  await qwenSwitch.click()
+  assert.equal(await qwenSwitch.getAttribute('aria-checked'), 'false')
   await page.getByRole('button', { name: '1.15×' }).click()
   assert.equal(await page.getByRole('button', { name: '1.15×' }).getAttribute('aria-pressed'), 'true')
   await page.keyboard.press('Escape')

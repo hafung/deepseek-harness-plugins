@@ -16,7 +16,7 @@ Community plugins for DeepSeek Harness: todos, reusable expert prompts, a daily 
 | [待办清单](plugins/dsh-todo-list/README.md) | `1.3.0` | 管理本地待办，后台派发给主 Agent，跟踪会话状态，导入导出 JSON | `0.2.0-rc.2` |
 | [专家](plugins/dsh-experts/README.md) | `1.0.0` | 管理专家提示词，分类、收藏与搜索，一键载入对话草稿，导入导出 JSON | `0.2.2-rc.1` |
 | [热点](plugins/dsh-hotspot/README.md) | `1.2.0` | 274 个精选 RSS 信源（含 Hacker News）、72 小时时效窗口、AI 精排 Top 30、一手来源优先、自媒体选题评分、收藏与看过归档、网感转写 | `0.2.2-rc.1` |
-| [Learn English](plugins/dsh-learn-english/README.md) | `1.0.0` | 侧栏英语练习室：自由对话与地道润色，仅返回英文，Edge + 本地 Qwen 语音，历史会话、PDF 与带音频 ZIP 导出 | `0.2.2-rc.1` |
+| [Learn English](plugins/dsh-learn-english/README.md) | `1.0.0` | 侧栏英语练习室：自由对话与地道润色，仅返回英文，Edge 默认开 / 本地 Qwen 可选，历史会话、PDF 与带音频 ZIP 导出 | `0.2.2-rc.1` |
 | [航迹](plugins/dsh-tracks/README.md) | `1.0.0` | 侧栏脚部徽章：轨道等级、8 条会破的个人纪录、4 轴航行人格、12 枚任务徽章，回填历史会话，可导出分享卡 | `0.2.2-rc.1` |
 
 上表列出各插件开发时对照的版本，其他 Harness 版本请自行验证。预览版的插件接口可能变化；遇到问题请附上 Harness 版本和复现步骤，提交 [Issue](https://github.com/hafung/deepseek-harness-plugins/issues)。
@@ -35,7 +35,9 @@ Community plugins for DeepSeek Harness: todos, reusable expert prompts, a daily 
 
 ### Learn English
 
-![Learn English：地道润色结果与 Edge / Qwen 双语音](docs/images/learn-english.png)
+![Learn English：地道润色结果与 Edge 语音](docs/images/learn-english.png)
+
+![Learn English：语音引擎开关](docs/images/learn-english-engines.png)
 
 ![Learn English：历史对话](docs/images/learn-english-history.png)
 
@@ -88,7 +90,7 @@ deepseek-harness-plugins/
 - **待办清单**：从左侧栏打开；「发给主 Agent」会在默认工作区创建会话，清单页面保持打开，执行完成后由你验收。
 - **专家**：从左侧栏打开；「应用」会把提示词写入当前会话草稿，已有内容时追加，不自动发送。
 - **热点**：从左侧栏打开；首次会并发扫描 274 个精选 RSS 源，客户端打开期间每小时自动更新 Top 30。卡片可「已知晓」归档到看过、点星标收藏；「网感转写」会把非中文原文改写成简中文章。
-- **Learn English**：从左侧栏打开，不创建主会话。自由对话模式像美国英语老师一样聊天；润色模式理解中文或散装英语后只返回自然的美式表达，不会回答问题。每条回复会同时请求 Edge TTS 和本地 Qwen3-TTS，可播放、暂停、下载并切换音色与语速。点「新对话」会把当前聊天自动存入「历史对话」；「导出」菜单可直接下载排版好的 A4 PDF，或下载包含精美 HTML 与 Edge / Qwen 音频的 ZIP，解压后打开 HTML 即可离线播放。地道润色模式下，鼠标移到单条用户消息或 AI 回复上可单独删除，导出时自动排除已删内容。
+- **Learn English**：从左侧栏打开，不创建主会话。自由对话模式像美国英语老师一样聊天；润色模式理解中文或散装英语后只返回自然的美式表达，不会回答问题。Edge TTS 默认开启，本地 Qwen3-TTS 默认关闭，可在「语音与播放」中分别开关；开启的引擎会生成音频，可播放、暂停、下载并切换音色与语速。点「新对话」会把当前聊天自动存入「历史对话」；「导出」菜单可直接下载排版好的 A4 PDF，或下载包含精美 HTML 与已开启引擎音频的 ZIP，解压后打开 HTML 即可离线播放。地道润色模式下，鼠标移到单条用户消息或 AI 回复上可单独删除，导出时自动排除已删内容。
 - **航迹**：侧栏脚部（「设置」旁）的 `Lv.6` 小徽章，点击向上弹出面板，不跳转页面。首次启用会在后台回填历史会话（可取消）；面板显示轨道等级、航迹纪录、航行人格、总览与任务徽章，`?` 展开每个数字的口径说明，「分享卡」导出一张 3:4 的 PNG。
 - **极光主题**：打开 **账号菜单 → 设置 → 皮肤**；会替换官方侧栏品牌，停用或卸载后恢复。
 

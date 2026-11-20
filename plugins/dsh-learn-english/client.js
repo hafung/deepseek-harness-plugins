@@ -146,6 +146,7 @@ window.__ModuleLoader__.load({
         'settings.qwenVoice': 'Qwen voice',
         'settings.speed': 'Speed',
         'settings.engines': 'Engines',
+        'settings.engineHint': 'Disabled engines will not generate or play audio.',
         'settings.online': 'Online',
         'settings.local': 'Local',
         'settings.qwenHint':
@@ -268,6 +269,7 @@ window.__ModuleLoader__.load({
         'settings.qwenVoice': 'Qwen 音色',
         'settings.speed': '语速',
         'settings.engines': '语音引擎',
+        'settings.engineHint': '关闭的引擎不会生成或播放语音。',
         'settings.online': '在线',
         'settings.local': '本地',
         'settings.qwenHint':
@@ -437,6 +439,8 @@ window.__ModuleLoader__.load({
           speed: 1,
           edgeVoiceCustom: false,
           qwenVoiceCustom: false,
+          edgeEnabled: true,
+          qwenEnabled: false,
         },
       }
     }
@@ -485,6 +489,8 @@ window.__ModuleLoader__.load({
             raw.prefs?.edgeVoiceCustom === true || edgeVoice !== fallback.prefs.edgeVoice,
           qwenVoiceCustom:
             raw.prefs?.qwenVoiceCustom === true || qwenSpeaker !== fallback.prefs.qwenSpeaker,
+          edgeEnabled: raw.prefs?.edgeEnabled !== false,
+          qwenEnabled: raw.prefs?.qwenEnabled === true,
         }
         const archived = (Array.isArray(raw.archived) ? raw.archived : [])
           .map(entry => {
@@ -1336,14 +1342,17 @@ window.__ModuleLoader__.load({
     async function downloadConversationZip({ mode, messages, t, locale, prefs, host, onProgress }) {
       const printable = messages.filter(message => message.content.trim())
       const assistants = printable.filter(message => message.role === 'assistant')
-      const total = assistants.length * 2
+      const enabledEngines = []
+      if (prefs.edgeEnabled !== false) enabledEngines.push('edge')
+      if (prefs.qwenEnabled === true) enabledEngines.push('qwen')
+      const total = assistants.length * enabledEngines.length
       const audioByMessage = new Map()
       const audioFiles = []
       let completed = 0
 
       for (let index = 0; index < assistants.length; index += 1) {
         const message = assistants[index]
-        const jobs = ['edge', 'qwen'].map(async engine => {
+        const jobs = enabledEngines.map(async engine => {
           const voice = engine === 'edge' ? prefs.edgeVoice : prefs.qwenSpeaker
           const voiceName = voiceLabel(host, engine, voice)
           try {
@@ -1970,6 +1979,9 @@ window.__ModuleLoader__.load({
     }
 
     function SpeechBar({ message, prefs, host, t, autoGenerate }) {
+      const edgeEnabled = prefs.edgeEnabled !== false
+      const qwenEnabled = prefs.qwenEnabled === true
+      if (!edgeEnabled && !qwenEnabled) return null
       const qwenStatus = host?.data?.engines?.qwen
       const qwenAvailable = qwenStatus ? Boolean(qwenStatus.available) : true
       const edgeVoices = resolveVoices(host, 'edge')
@@ -1981,32 +1993,36 @@ window.__ModuleLoader__.load({
       return h(
         'div',
         { className: 'le-voices' },
-        h(VoicePlayer, {
-          key: `edge:${prefs.edgeVoice}:${prefs.speed}`,
-          engine: 'edge',
-          messageId: message.id,
-          text: message.content,
-          voice: prefs.edgeVoice,
-          voiceName: edgeVoiceName,
-          rate: prefs.speed,
-          autoGenerate,
-          autoPlay: autoGenerate && prefs.autoRead,
-          available: true,
-          t,
-        }),
-        h(VoicePlayer, {
-          key: `qwen:${prefs.qwenSpeaker}:${prefs.speed}`,
-          engine: 'qwen',
-          messageId: message.id,
-          text: message.content,
-          voice: prefs.qwenSpeaker,
-          voiceName: qwenVoiceName,
-          rate: prefs.speed,
-          autoGenerate,
-          autoPlay: false,
-          available: qwenAvailable,
-          t,
-        }),
+        edgeEnabled
+          ? h(VoicePlayer, {
+              key: `edge:${prefs.edgeVoice}:${prefs.speed}`,
+              engine: 'edge',
+              messageId: message.id,
+              text: message.content,
+              voice: prefs.edgeVoice,
+              voiceName: edgeVoiceName,
+              rate: prefs.speed,
+              autoGenerate,
+              autoPlay: autoGenerate && prefs.autoRead,
+              available: true,
+              t,
+            })
+          : null,
+        qwenEnabled
+          ? h(VoicePlayer, {
+              key: `qwen:${prefs.qwenSpeaker}:${prefs.speed}`,
+              engine: 'qwen',
+              messageId: message.id,
+              text: message.content,
+              voice: prefs.qwenSpeaker,
+              voiceName: qwenVoiceName,
+              rate: prefs.speed,
+              autoGenerate,
+              autoPlay: false,
+              available: qwenAvailable,
+              t,
+            })
+          : null,
       )
     }
 
@@ -2558,8 +2574,15 @@ window.__ModuleLoader__.load({
           { className: 'le-engine-list' },
           h('span', { className: 'le-field-label' }, t('settings.engines')),
           h(
-            'div',
-            { className: 'le-engine' },
+            'button',
+            {
+              type: 'button',
+              role: 'switch',
+              className: `le-engine${prefs.edgeEnabled !== false ? ' is-enabled' : ''}`,
+              'aria-checked': prefs.edgeEnabled !== false,
+              'aria-label': engines?.edge?.label ?? t('tts.edge'),
+              onClick: () => onPrefs({ edgeEnabled: prefs.edgeEnabled === false }, false),
+            },
             h('span', {
               className: `le-engine-dot${engines?.edge?.available !== false ? ' is-on' : ''}`,
               'aria-hidden': true,
@@ -2570,11 +2593,26 @@ window.__ModuleLoader__.load({
               h('strong', null, engines?.edge?.label ?? t('tts.edge')),
               h('span', null, engines?.edge?.detail ?? t('settings.online')),
             ),
-            h('span', { className: 'le-engine-tag' }, t('settings.online')),
+            h(
+              'span',
+              {
+                className: `le-engine-switch${prefs.edgeEnabled !== false ? ' is-on' : ''}`,
+                'aria-hidden': true,
+              },
+              h('span'),
+            ),
           ),
           h(
-            'div',
-            { className: 'le-engine' },
+            'button',
+            {
+              type: 'button',
+              role: 'switch',
+              className: `le-engine${prefs.qwenEnabled === true && engines?.qwen?.available !== false ? ' is-enabled' : ''}`,
+              'aria-checked': prefs.qwenEnabled === true && engines?.qwen?.available !== false,
+              'aria-label': engines?.qwen?.label ?? t('tts.qwen'),
+              onClick: () => onPrefs({ qwenEnabled: prefs.qwenEnabled !== true }, false),
+              disabled: engines?.qwen?.available === false,
+            },
             h('span', {
               className: `le-engine-dot${engines?.qwen?.available ? ' is-on' : ' is-off'}`,
               'aria-hidden': true,
@@ -2585,8 +2623,16 @@ window.__ModuleLoader__.load({
               h('strong', null, engines?.qwen?.label ?? t('tts.qwen')),
               h('span', null, engines?.qwen?.detail ?? t('settings.local')),
             ),
-            h('span', { className: 'le-engine-tag' }, t('settings.local')),
+            h(
+              'span',
+              {
+                className: `le-engine-switch${prefs.qwenEnabled === true && engines?.qwen?.available !== false ? ' is-on' : ''}`,
+                'aria-hidden': true,
+              },
+              h('span'),
+            ),
           ),
+          h('p', { className: 'le-note' }, t('settings.engineHint')),
         ),
         h('div', { className: 'le-model-line' }, h('span', null, t('settings.model')), h('code', null, model ? model.model : '—')),
         h('p', { className: 'le-note' }, t('settings.qwenHint')),
@@ -3698,14 +3744,20 @@ window.__ModuleLoader__.load({
       .le-segment button:hover { color:var(--le-ink); }
       .le-segment button.is-active { color:var(--le-ink); background:var(--le-surface); box-shadow:0 1px 2px color-mix(in srgb, var(--le-ink) 8%, transparent); }
       .le-engine-list { display:flex; flex-direction:column; gap:6px; }
-      .le-engine { display:grid; grid-template-columns:6px minmax(0, 1fr) auto; align-items:center; gap:8px; padding:7px 8px; border:1px solid var(--le-line); border-radius:8px; background:color-mix(in srgb, var(--le-surface) 45%, transparent); }
+      .le-engine { display:grid; grid-template-columns:6px minmax(0, 1fr) auto; align-items:center; gap:8px; width:100%; padding:7px 8px; border:1px solid var(--le-line); border-radius:8px; background:color-mix(in srgb, var(--le-surface) 45%, transparent); color:inherit; font:inherit; text-align:left; cursor:pointer; transition:border-color .16s ease, background-color .16s ease; }
+      .le-engine:hover:not(:disabled) { border-color:var(--le-line-strong); background:color-mix(in srgb, var(--le-surface) 70%, transparent); }
+      .le-engine.is-enabled { border-color:color-mix(in srgb, var(--le-brand) 22%, var(--le-line)); }
+      .le-engine:disabled { opacity:.55; cursor:default; }
       .le-engine-dot { width:5px; height:5px; border-radius:50%; background:var(--le-muted); opacity:.55; }
       .le-engine-dot.is-on { background:var(--le-success); opacity:1; }
       .le-engine-dot.is-off { background:var(--le-error); opacity:.8; }
       .le-engine-copy { display:flex; flex-direction:column; gap:1px; min-width:0; }
       .le-engine-copy strong { font-size:9.5px; font-weight:680; }
       .le-engine-copy span { color:var(--le-muted); font-size:8.5px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      .le-engine-tag { color:var(--le-muted); font-size:7.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+      .le-engine-switch { position:relative; flex:none; width:30px; height:17px; border-radius:999px; background:color-mix(in srgb, var(--le-ink) 13%, transparent); transition:background-color .2s ease; }
+      .le-engine-switch > span { position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--le-surface); box-shadow:0 1px 3px color-mix(in srgb, var(--le-ink) 22%, transparent); transition:transform .2s cubic-bezier(.2,.7,.2,1); }
+      .le-engine-switch.is-on { background:var(--le-brand); }
+      .le-engine-switch.is-on > span { transform:translateX(13px); background:var(--le-bg); }
       .le-model-line { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:1px; color:var(--le-muted); font-size:8.5px; font-weight:650; letter-spacing:.05em; text-transform:uppercase; }
       .le-model-line code { max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--le-ink); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:9px; text-transform:none; }
       .le-note { margin:0; color:color-mix(in srgb, var(--le-muted) 80%, transparent); font-size:8.5px; line-height:1.55; }

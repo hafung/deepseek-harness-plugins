@@ -1,6 +1,6 @@
 # Learn English
 
-A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by Edge TTS and the local Qwen3-TTS engine. Past conversations are archived locally, and the current thread can be downloaded as a clean A4 PDF or a self-contained ZIP with a playable HTML page and both voice tracks.
+A private English studio inside DeepSeek Harness. The left-sidebar entry opens a full-height conversation surface, not the main session. Every reply is generated in natural American English, and each finished reply is synthesized by the speech engines you enable. Edge TTS is on by default; the local Qwen3-TTS engine is off by default and can be switched on in settings. Past conversations are archived locally, and the current thread can be downloaded as a clean A4 PDF or a self-contained ZIP with a playable HTML page and the enabled voice tracks.
 
 ## Modes
 
@@ -15,7 +15,7 @@ Each completed assistant reply triggers two independent synthesis jobs:
 - **Edge TTS** — Microsoft's neural voice service. The Host implements the current `api.msedgeservices.com` WebSocket protocol, the `Sec-MS-GEC` v2 token, and MP3 streaming without an external npm dependency. A small vendored copy of [`ws`](https://github.com/websockets/ws) (MIT) provides the WebSocket upgrade headers. Default voice: `en-US-AvaNeural`.
 - **Qwen3-TTS** — the local engine at `D:\DevTools\Qwen3-TTS\engine\qwen_tts.exe` with the 1.7B CustomVoice model. The Host serializes jobs so one CPU-bound synthesis runs at a time, uses `--int8`, and caches WAV files by content. Default speaker: `ryan`.
 
-Edge is generated first and can auto-play. Qwen appears in the same message as soon as it is ready (the first run has to load the model, so it can take about a minute). Both engines can be played, paused, replayed, and downloaded from the message. The voice picker, speed (`0.85×`, `1×`, `1.15×`), and auto-read preference live in the page's settings popover.
+Edge is enabled by default and can auto-play. Qwen is disabled by default; switch it on in **Voice & playback → Engines** when you want local synthesis (the first run has to load the model, so it can take about a minute). Disabled engines do not generate or play audio, and ZIP exports include only enabled engines. Enabled engines can be played, paused, replayed, and downloaded from the message. Engine switches, the voice pickers, speed (`0.85×`, `1×`, `1.15×`), and auto-read all live in the page's settings popover.
 
 Generated audio is cached under `$DSH_HOME/plugin-data/dsh-learn-english/audio`. The cache keeps the most recent 120 clips.
 
@@ -34,7 +34,7 @@ The header's **Export** menu offers two direct downloads.
 **Export ZIP** downloads a folder-ready archive containing:
 
 - `index.html` — a standalone, responsive conversation page with the same editorial layout.
-- `audio/` — the Edge and Qwen tracks for every assistant reply, named by message and engine.
+- `audio/` — the enabled-engine tracks for every assistant reply, named by message and engine.
 - `README.txt` — a short note on opening the page and keeping the audio folder beside it.
 
 Open `index.html` from the extracted folder to read the conversation and play either voice inline. The page has custom play/pause buttons, progress bars, durations, and only one clip plays at a time. The ZIP is created locally; no conversation or audio is uploaded.
